@@ -1,0 +1,105 @@
+{
+  "api": {
+    "last_access_date": "20260422",
+    "access_times": {
+      "915": "10:59:18",
+      "1435": null,
+      "1605": null
+    }
+  },
+  "lof": {
+    "last_process_date": "2026-04-20",
+    "processed_funds": {
+      "501018": {
+        "last_process_time": "21:44:32",
+        "has_price": false,
+        "has_nav": false
+      },
+      "160723": {
+        "last_process_time": "21:44:35",
+        "has_price": false,
+        "has_nav": false
+      },
+      "161129": {
+        "last_process_time": "21:44:38",
+        "has_price": false,
+        "has_nav": false
+      },
+      "160216": {
+        "last_process_time": "21:44:41",
+        "has_price": false,
+        "has_nav": false
+      },
+      "161815": {
+        "last_process_time": "21:44:44",
+        "has_price": false,
+        "has_nav": false
+      },
+      "160719": {
+        "last_process_time": "21:44:46",
+        "has_price": false,
+        "has_nav": false
+      },
+      "161116": {
+        "last_process_time": "21:44:48",
+        "has_price": false,
+        "has_nav": false
+      },
+      "164701": {
+        "last_process_time": "21:44:52",
+        "has_price": false,
+        "has_nav": false
+      },
+      "165513": {
+        "last_process_time": "21:44:55",
+        "has_price": false,
+        "has_nav": false
+      },
+      "513350": {
+        "last_process_time": "21:44:57",
+        "has_price": false,
+        "has_nav": false
+      },
+      "159518": {
+        "last_process_time": "21:44:59",
+        "has_price": false,
+        "has_nav": false
+      },
+      "162411": {
+        "last_process_time": "21:45:01",
+        "has_price": false,
+        "has_nav": false
+      },
+      "162415": {
+        "last_process_time": "21:45:04",
+        "has_price": false,
+        "has_nav": false
+      },
+      "159502": {
+        "last_process_time": "21:45:07",
+        "has_price": false,
+        "has_nav": false
+      },
+      "161127": {
+        "last_process_time": "21:45:12",
+        "has_price": false,
+        "has_nav": false
+      },
+      "161125": {
+        "last_process_time": "21:45:14",
+        "has_price": false,
+        "has_nav": false
+      },
+      "161130": {
+        "last_process_time": "21:45:18",
+        "has_price": false,
+        "has_nav": false
+      },
+      "161226": {
+        "last_process_time": "21:45:20",
+        "has_price": false,
+        "has_nav": false
+      }
+    }
+  }
+}

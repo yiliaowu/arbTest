@@ -1,0 +1,51 @@
+# AI 隐私文件
+Gemini*
+.gemini
+000_AI_Context.md
+
+# ====================
+# 调试过程（全部不上传）
+# ====================
+LOFarb/ibapi/
+LOFarb/my-ai/
+LOFarb/AGENTS/
+
+**/_mytoken.py
+woodyAPI/
+woodykey轮动demo/
+
+ETFRotate/
+jsl/
+scripts/
+test_read_data/
+公众号/
+LOFarb/LOF004*.py
+
+# ===================
+# Python 缓存垃圾
+# ====================
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.venv/
+venv/
+
+# ====================
+# IDE 系统配置
+# ====================
+.vscode/
+.idea/
+.DS_Store
+
+# ====================
+# 日志文件
+# ====================
+*.log
+
+# ====================
+# 数据库文件
+# ====================
+# 忽略 database 目录及其子目录下的所有数据库文件
+database/**/*.db
+database/**/*.sqlite

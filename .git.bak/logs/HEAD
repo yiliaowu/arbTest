@@ -1,0 +1,27 @@
+0000000000000000000000000000000000000000 5551813200798ef293dbaac40a2af670ab679993 Xiaodonge <xiaodongchang16@gmail.com> 1771975873 +0800	commit (initial): 基本完成了对冲ETF、持仓、期货 三个TAB，现在开始增加白银LOF
+5551813200798ef293dbaac40a2af670ab679993 4eef064576361aedcdde86fa4071034f0419536a Xiaodonge <xiaodongchang16@gmail.com> 1771976950 +0800	commit: 基本完成了对冲ETF、持仓、期货 三个TAB，完成了增加白银LOF的期货
+4eef064576361aedcdde86fa4071034f0419536a 93254b3eafbd87c0adbcdfa6ced5df422b439b01 Xiaodonge <xiaodongchang16@gmail.com> 1772022406 +0800	commit: 读取了woody的 GC CL期货+东财的沪银Ag2604 SSE方式
+93254b3eafbd87c0adbcdfa6ced5df422b439b01 93f040042f73965f360de0d2cba396f2ad97999f Xiaodonge <xiaodongchang16@gmail.com> 1772092747 +0800	commit: 新浪 LOF历史价格+东财历史净值成功读取
+93f040042f73965f360de0d2cba396f2ad97999f 51f64855844f118d9f88af52548c032789ac179c Xiaodonge <xiaodongchang16@gmail.com> 1772099743 +0800	commit: 前后台基本正确
+51f64855844f118d9f88af52548c032789ac179c 06608df78330428ba0e1254931cc224793296f5e Xiaodonge <xiaodongchang16@gmail.com> 1772190037 +0800	commit: 01 基本更新正常了
+06608df78330428ba0e1254931cc224793296f5e beba0c1ea6d8a88d939397ff1e3112357b3e90ea Xiaodonge <xiaodongchang16@gmail.com> 1772198440 +0800	commit: 01程序OK，静态数据读取成功，静态估值计算成功，开始02动态数据
+beba0c1ea6d8a88d939397ff1e3112357b3e90ea a025d3619d5008a36470e124ebc99beb402be563 Xiaodonge <xiaodongchang16@gmail.com> 1772287418 +0800	commit: 更新了低于woody网页获得仓位和权重，并更新yaml。 更新了交易日、非交易日读取GLD等的逻辑
+a025d3619d5008a36470e124ebc99beb402be563 5bb6a5bcf3830f952cb3a71358e117975e7dfa64 Xiaodonge <xiaodongchang16@gmail.com> 1772291546 +0800	commit: 28日晚，成功完成了01程序Debug
+5bb6a5bcf3830f952cb3a71358e117975e7dfa64 56c842c87c1056001f11d69cbf259e1abdefa848 Xiaodonge <xiaodongchang16@gmail.com> 1772375300 +0800	commit: 更新01的读取数据逻辑，只和T日表格数据对比
+56c842c87c1056001f11d69cbf259e1abdefa848 ad53f855ac183ce6c3ed629ab6ab4ade6ebedce2 Xiaodonge <xiaodongchang16@gmail.com> 1772518096 +0800	commit: 拆分01 为011 012 分别处理woody 和LOF，一切正常
+ad53f855ac183ce6c3ed629ab6ab4ade6ebedce2 2fb766928f1d02c07bf81cddd3e44363dd6fdb46 Xiaodonge <xiaodongchang16@gmail.com> 1772618369 +0800	commit: 更细了011
+2fb766928f1d02c07bf81cddd3e44363dd6fdb46 7032a05edefae96cad639b43c37735a7d7f77749 Xiaodonge <xiaodongchang16@gmail.com> 1772631840 +0800	commit: 011 正确 03 更新OK，但是显示不了今天的收盘价，点进去第二级日期的显示还有问题
+7032a05edefae96cad639b43c37735a7d7f77749 e5207278b3dd3344bbc6b51277be6bb1c4d88c1a Xiaodonge <xiaodongchang16@gmail.com> 1772681729 +0800	commit: 011 012 正常
+e5207278b3dd3344bbc6b51277be6bb1c4d88c1a a4f62bbf244e2f38eb14b92ce78b311129e554ee Xiaodonge <xiaodongchang16@gmail.com> 1772692482 +0800	commit: 012 修复，静态估值计算全部正确
+a4f62bbf244e2f38eb14b92ce78b311129e554ee e561f1aa934b180f934db5bfdad745af4c773ec3 Xiaodonge <xiaodongchang16@gmail.com> 1772717163 +0800	commit: 全部程序 OK
+e561f1aa934b180f934db5bfdad745af4c773ec3 1545691a36a56859207b858757a93ec3a8afa3bf Xiaodonge <xiaodongchang16@gmail.com> 1772793433 +0800	commit: 优化，验证了主页面的实时估值，均正确
+1545691a36a56859207b858757a93ec3a8afa3bf 78bb3108ebd940348d91b5f66a8428b660ad269d Xiaodonge <xiaodongchang16@gmail.com> 1772801854 +0800	commit: 重大突破，读取了IB夜盘数据
+78bb3108ebd940348d91b5f66a8428b660ad269d 3843a6b894299e87d71a1349740d306428a8ac67 Xiaodonge <xiaodongchang16@gmail.com> 1773057104 +0800	commit: 目前程序正常
+3843a6b894299e87d71a1349740d306428a8ac67 2a1a8a33750deb67ed64f64ce232ab6f5dbc7ce7 Xiaodonge <xiaodongchang16@gmail.com> 1773156487 +0800	commit: 增加期货
+2a1a8a33750deb67ed64f64ce232ab6f5dbc7ce7 2a1a8a33750deb67ed64f64ce232ab6f5dbc7ce7 Xiaodonge <xiaodongchang16@gmail.com> 1773191225 +0800	checkout: moving from master to 2a1a8a3
+2a1a8a33750deb67ed64f64ce232ab6f5dbc7ce7 944ff7f5d6c4cc5c3d3b6f32c25e8af8f8d7ea7c Xiaodonge <xiaodongchang16@gmail.com> 1773192806 +0800	commit: 期货显示正常
+944ff7f5d6c4cc5c3d3b6f32c25e8af8f8d7ea7c cd52688c99bba6d4a987d9a7fc11085f23b925ee Xiaodonge <xiaodongchang16@gmail.com> 1773229194 +0800	commit: 主页聚焦动态，次页聚焦静态OK
+cd52688c99bba6d4a987d9a7fc11085f23b925ee 2e583277b590fc9b477e327094bf19152de3b663 Xiaodonge <xiaodongchang16@gmail.com> 1773234068 +0800	commit: 03 拆分031-033 OK
+2e583277b590fc9b477e327094bf19152de3b663 56bd6f907f3b6d4134e442d6de394cf634f041b8 Xiaodonge <xiaodongchang16@gmail.com> 1773321186 +0800	commit: 期货实时估值 搞定，接下来拆分白银期货161226
+56bd6f907f3b6d4134e442d6de394cf634f041b8 37a5755f4438c6d30e688ecf2b453e2fdcaac06e Xiaodonge <xiaodongchang16@gmail.com> 1773389239 +0800	commit: 第一个版本完成
+37a5755f4438c6d30e688ecf2b453e2fdcaac06e 1ae5f36c4e3d94b6b2d540fb5cc5bcb76c8dc347 Xiaodonge <xiaodongchang16@gmail.com> 1773488356 +0800	commit: init: LOF arbitrage monitor
