@@ -14,7 +14,6 @@ import pandas as pd
 from datetime import datetime, timedelta
 import json
 import yaml
-import sqlite3
 import random
 import ssl
 import socket
@@ -237,10 +236,10 @@ def get_ib_night_prices():
 
 class SinaFuturesReader:
     def __init__(self):
-        self.prices = {'GC': 0, 'CL': 0, 'MGC': 0, 'MCL': 0, 'AG': 0, 'MNQ': 0, 'MES': 0}
-        self.prev_prices = {'GC': 0, 'CL': 0, 'MGC': 0, 'MCL': 0, 'AG': 0, 'MNQ': 0, 'MES': 0}
-        self.settlement_prices = {'AG': 0, 'GC': 0, 'CL': 0, 'MGC': 0, 'MCL': 0, 'MNQ': 0, 'MES': 0}
-        self.sources = {'GC': '新浪API', 'CL': '新浪API', 'MGC': '新浪API', 'MCL': '新浪API', 'AG': '新浪API', 'MNQ': '新浪API', 'MES': '新浪API'}
+        self.prices = {'GC': 0, 'CL': 0, 'MGC': 0, 'MCL': 0, 'AG': 0, 'AG0': 0, 'NQ': 0, 'ES': 0, 'MNQ': 0, 'MES': 0}
+        self.prev_prices = {'GC': 0, 'CL': 0, 'MGC': 0, 'MCL': 0, 'AG': 0, 'AG0': 0, 'NQ': 0, 'ES': 0, 'MNQ': 0, 'MES': 0}
+        self.settlement_prices = {'AG': 0, 'AG0': 0, 'GC': 0, 'CL': 0, 'MGC': 0, 'MCL': 0, 'NQ': 0, 'ES': 0, 'MNQ': 0, 'MES': 0}
+        self.sources = {'GC': '新浪API', 'CL': '新浪API', 'MGC': '新浪API', 'MCL': '新浪API', 'AG': '新浪API', 'AG0': '新浪API', 'NQ': '新浪API', 'ES': '新浪API', 'MNQ': '新浪API', 'MES': '新浪API'}
         self.headers = {'Referer': 'https://finance.sina.com.cn/'}
     
     def is_trading_time(self):
@@ -261,7 +260,10 @@ class SinaFuturesReader:
         cp, pp = self.prices.get(symbol, 0), self.prev_prices.get(symbol, 0)
         return (cp - pp) / pp * 100 if pp > 0 else 0.0
     
-    def update_prices(self):
+    def _should_emit(self, alias, emit_symbols):
+        return emit_symbols is None or alias in emit_symbols
+
+    def update_prices(self, emit_symbols=None):
         # 移除交易时间限制，确保美股期货数据始终更新
         trading_time = True
         url = "http://hq.sinajs.cn/list=hf_GC,hf_CL,nf_AG0,hf_NQ,hf_ES"
@@ -282,20 +284,22 @@ class SinaFuturesReader:
                             if old_price != current_price:
                                 self.prices['GC'] = current_price
                                 # WebSocket推送期货价格更新
-                                socketio.emit('futures_price_update', {
-                                    'symbol': 'GC',
-                                    'price': current_price,
-                                    'timestamp': datetime.now().strftime('%H:%M:%S.%f')[:-3],
-                                    'source': '新浪API'
-                                })
+                                if self._should_emit('GC', emit_symbols):
+                                    socketio.emit('futures_price_update', {
+                                        'symbol': 'GC',
+                                        'price': current_price,
+                                        'timestamp': datetime.now().strftime('%H:%M:%S.%f')[:-3],
+                                        'source': '新浪API'
+                                    })
                                 # 同时发射MGC (微型黄金合约)
                                 self.prices['MGC'] = current_price
-                                socketio.emit('futures_price_update', {
-                                    'symbol': 'MGC',
-                                    'price': current_price,
-                                    'timestamp': datetime.now().strftime('%H:%M:%S.%f')[:-3],
-                                    'source': '新浪API'
-                                })
+                                if self._should_emit('MGC', emit_symbols):
+                                    socketio.emit('futures_price_update', {
+                                        'symbol': 'MGC',
+                                        'price': current_price,
+                                        'timestamp': datetime.now().strftime('%H:%M:%S.%f')[:-3],
+                                        'source': '新浪API'
+                                    })
                             self.prev_prices['GC'] = yesterday_settlement
                             self.settlement_prices['GC'] = yesterday_settlement
                             self.prev_prices['MGC'] = yesterday_settlement
@@ -311,20 +315,22 @@ class SinaFuturesReader:
                             if old_price != current_price:
                                 self.prices['CL'] = current_price
                                 # WebSocket推送期货价格更新
-                                socketio.emit('futures_price_update', {
-                                    'symbol': 'CL',
-                                    'price': current_price,
-                                    'timestamp': datetime.now().strftime('%H:%M:%S.%f')[:-3],
-                                    'source': '新浪API'
-                                })
+                                if self._should_emit('CL', emit_symbols):
+                                    socketio.emit('futures_price_update', {
+                                        'symbol': 'CL',
+                                        'price': current_price,
+                                        'timestamp': datetime.now().strftime('%H:%M:%S.%f')[:-3],
+                                        'source': '新浪API'
+                                    })
                                 # 同时发射MCL (微型原油合约)
                                 self.prices['MCL'] = current_price
-                                socketio.emit('futures_price_update', {
-                                    'symbol': 'MCL',
-                                    'price': current_price,
-                                    'timestamp': datetime.now().strftime('%H:%M:%S.%f')[:-3],
-                                    'source': '新浪API'
-                                })
+                                if self._should_emit('MCL', emit_symbols):
+                                    socketio.emit('futures_price_update', {
+                                        'symbol': 'MCL',
+                                        'price': current_price,
+                                        'timestamp': datetime.now().strftime('%H:%M:%S.%f')[:-3],
+                                        'source': '新浪API'
+                                    })
                             self.prev_prices['CL'] = yesterday_settlement
                             self.settlement_prices['CL'] = yesterday_settlement
                             self.prev_prices['MCL'] = yesterday_settlement
@@ -338,16 +344,21 @@ class SinaFuturesReader:
                             yesterday_settlement = float(v[7])
                             old_price = self.prices.get('MNQ', 0)
                             if old_price != current_price:
+                                self.prices['NQ'] = current_price
                                 self.prices['MNQ'] = current_price
-                                # WebSocket推送期货价格更新
-                                socketio.emit('futures_price_update', {
-                                    'symbol': 'MNQ',
-                                    'price': current_price,
-                                    'timestamp': datetime.now().strftime('%H:%M:%S.%f')[:-3],
-                                    'source': '新浪API'
-                                })
+                                for alias in ('NQ', 'MNQ'):
+                                    if self._should_emit(alias, emit_symbols):
+                                        socketio.emit('futures_price_update', {
+                                            'symbol': alias,
+                                            'price': current_price,
+                                            'timestamp': datetime.now().strftime('%H:%M:%S.%f')[:-3],
+                                            'source': '新浪API'
+                                        })
+                            self.prev_prices['NQ'] = yesterday_settlement
                             self.prev_prices['MNQ'] = yesterday_settlement
+                            self.settlement_prices['NQ'] = yesterday_settlement
                             self.settlement_prices['MNQ'] = yesterday_settlement
+                            futures_data['NQ'] = yesterday_settlement
                             futures_data['MNQ'] = yesterday_settlement
                     elif 'hf_ES' in line:
                         v = line.split('"')[1].split(',')
@@ -356,16 +367,21 @@ class SinaFuturesReader:
                             yesterday_settlement = float(v[7])
                             old_price = self.prices.get('MES', 0)
                             if old_price != current_price:
+                                self.prices['ES'] = current_price
                                 self.prices['MES'] = current_price
-                                # WebSocket推送期货价格更新
-                                socketio.emit('futures_price_update', {
-                                    'symbol': 'MES',
-                                    'price': current_price,
-                                    'timestamp': datetime.now().strftime('%H:%M:%S.%f')[:-3],
-                                    'source': '新浪API'
-                                })
+                                for alias in ('ES', 'MES'):
+                                    if self._should_emit(alias, emit_symbols):
+                                        socketio.emit('futures_price_update', {
+                                            'symbol': alias,
+                                            'price': current_price,
+                                            'timestamp': datetime.now().strftime('%H:%M:%S.%f')[:-3],
+                                            'source': '新浪API'
+                                        })
+                            self.prev_prices['ES'] = yesterday_settlement
                             self.prev_prices['MES'] = yesterday_settlement
+                            self.settlement_prices['ES'] = yesterday_settlement
                             self.settlement_prices['MES'] = yesterday_settlement
+                            futures_data['ES'] = yesterday_settlement
                             futures_data['MES'] = yesterday_settlement
                     elif 'nf_AG0' in line:
                         v = line.split('"')[1].split(',')
@@ -379,15 +395,23 @@ class SinaFuturesReader:
                                     new_price = close_p if close_p > 0 else float(v[3])
                                 if old_price != new_price:
                                     self.prices['AG'] = new_price
-                                    # WebSocket推送白银价格更新
-                                    socketio.emit('futures_price_update', {
-                                        'symbol': 'AG',
-                                        'price': new_price,
-                                        'timestamp': datetime.now().strftime('%H:%M:%S.%f')[:-3],
-                                        'source': '新浪API'
-                                    })
-                                self.prev_prices['AG'] = float(v[7]) if float(v[7])>0 else float(v[10])
-                                self.settlement_prices['AG'] = float(v[9]) if float(v[9])>0 else float(v[11])
+                                    self.prices['AG0'] = new_price
+                                    for alias in ('AG', 'AG0'):
+                                        if self._should_emit(alias, emit_symbols):
+                                            socketio.emit('futures_price_update', {
+                                                'symbol': alias,
+                                                'price': new_price,
+                                                'timestamp': datetime.now().strftime('%H:%M:%S.%f')[:-3],
+                                                'source': '新浪API'
+                                            })
+                                prev_settle = float(v[10]) if len(v) > 10 and float(v[10]) > 0 else 0.0
+                                current_settle = float(v[9]) if len(v) > 9 and float(v[9]) > 0 else 0.0
+                                settle_price = current_settle if current_settle > 0 else prev_settle
+                                prev_price = prev_settle if prev_settle > 0 else settle_price
+                                self.prev_prices['AG'] = prev_price
+                                self.prev_prices['AG0'] = prev_price
+                                self.settlement_prices['AG'] = settle_price
+                                self.settlement_prices['AG0'] = settle_price
                             except: pass
                 
 
@@ -866,31 +890,28 @@ class FuturePriceService:
 
     def _polling_loop(self):
         while self.running:
-            # IB数据是实时推送的，不需要轮询
-            # 仅更新备用数据源
+            # IB数据是实时推送的；这里轮询新浪/SSE作为全期货兜底数据源
             self.update_fallback_prices()
             time.sleep(20)
 
-    def get_price(self, symbol):
-        # 优先从IB获取
+    def _ib_price(self, symbol):
         ib_symbol = self._map_symbol(symbol)
         ib_data = self.ib_reader.prices.get(ib_symbol, {})
-
         if ib_data and isinstance(ib_data, dict):
-            # 返回bid价格，如果没有则尝试last price
-            if ib_data.get('bid', 0) > 0:
-                return ib_data['bid']
-            # 某些ETF可能只有last price
-            # 尝试从prev_closes获取最新价格（如果有的话）
-            if symbol in ['USO', 'XOP', 'XBI', 'SPY', 'QQQ', 'SLV', 'GLD']:
-                # ETF从IB获取
-                return ib_data.get('bid', 0)
+            for key in ('bid', 'last', 'price', 'close', 'ask'):
+                if ib_data.get(key, 0) > 0:
+                    return ib_data[key]
+        return 0
 
-        # 备用：从新浪获取（仅AG0）
+    def _has_tws_price(self, symbol):
+        return self._ib_price(symbol) > 0
+
+    def get_price(self, symbol):
+        ib_symbol = self._map_symbol(symbol)
+        # 对应期货页面使用主连期货行情；TWS 行情保留给 IB 面板。
         if symbol == 'AG0':
             return self.sse_reader.ag0_price if self.sse_reader.ag0_price > 0 else self.sina_reader.prices.get('AG', 0)
-
-        return 0
+        return self.sina_reader.prices.get(ib_symbol, self.sina_reader.prices.get(symbol, 0))
 
     def _map_symbol(self, symbol):
         """映射symbol到IB使用的代码"""
@@ -900,22 +921,17 @@ class FuturePriceService:
         if symbol in ['ES', 'MES']:
             return 'MES'  # IB使用MES
         if symbol in ['GC', 'MGC']:
-            return 'GC'   # IB使用GC（标准黄金）
+            return 'MGC'  # TWS订阅微型黄金
         if symbol in ['CL', 'MCL']:
-            return 'CL'   # IB使用CL（标准原油）
+            return 'MCL'  # TWS订阅微型原油
         return symbol
 
     def get_settlement_price(self, symbol):
-        # 从IB的prev_closes获取结算价
         ib_symbol = self._map_symbol(symbol)
-        if ib_symbol in self.ib_reader.prev_closes:
-            return self.ib_reader.prev_closes[ib_symbol]
-
-        # 备用：AG0从SSE获取
+        # 主连期货使用新浪主连结算价；AG0 优先 SSE。
         if symbol == 'AG0':
             return self.sse_reader.ag0_settlement if self.sse_reader.ag0_settlement > 0 else self.sina_reader.get_settlement_price('AG')
-
-        return 0
+        return self.sina_reader.get_settlement_price(ib_symbol) or self.sina_reader.get_settlement_price(symbol)
 
     def get_vwap(self, symbol):
         if symbol == 'AG0':
@@ -924,9 +940,9 @@ class FuturePriceService:
 
     def get_source(self, symbol):
         ib_symbol = self._map_symbol(symbol)
-        if ib_symbol in self.ib_reader.sources:
-            return self.ib_reader.sources[ib_symbol]
         if symbol == 'AG0': return 'SSE' if self.sse_reader.ag0_price > 0 else '新浪API'
+        if self.sina_reader.prices.get(ib_symbol, 0) > 0 or self.sina_reader.prices.get(symbol, 0) > 0:
+            return f"主连期货({self.sina_reader.get_source(ib_symbol)})"
         return '未知'
 
     def get_change_percent(self, symbol):
@@ -938,9 +954,32 @@ class FuturePriceService:
         return 0.0
 
     def update_fallback_prices(self):
-        """更新备用数据源（仅AG0需要）"""
+        """更新主连期货数据源：新浪负责GC/CL/NQ/ES主连，SSE负责AG0。"""
+        self.sina_reader.update_prices()
         if not self.sse_reader.running:
             self.sse_reader.update_ag0_price()
+
+    def build_snapshot(self):
+        mnq_price = self.get_price('MNQ')
+        mes_price = self.get_price('MES')
+        return {
+            'GC': self.get_price('GC'),
+            'MGC': self.get_price('MGC'),
+            'CL': self.get_price('CL'),
+            'MCL': self.get_price('MCL'),
+            'NQ': mnq_price,
+            'MNQ': mnq_price,
+            'ES': mes_price,
+            'MES': mes_price,
+            'AG': self.sina_reader.prices.get('AG', 0),
+            'AG0': self.get_price('AG0'),
+        }
+
+    def build_settlement_snapshot(self):
+        return {sym: self.get_settlement_price(sym) for sym in ['GC', 'MGC', 'CL', 'MCL', 'NQ', 'MNQ', 'ES', 'MES', 'AG0']}
+
+    def build_source_snapshot(self):
+        return {sym: self.get_source(sym) for sym in ['GC', 'MGC', 'CL', 'MCL', 'NQ', 'MNQ', 'ES', 'MES', 'AG0']}
 
 # 初始化服务
 dynamic_calculator = DynamicValuationCalculator(db_manager)
@@ -977,21 +1016,12 @@ def handle_connect():
         'prices': lof_price_reader.lof_prices,
         'timestamp': datetime.now().strftime('%Y-%m-%d %H:%M:%S')
     })
-    # 发送期货价格快照（同时包含标准合约代码NQ/ES和微型合约代码MNQ/MES）
-    futures_prices = dict(future_service.sina_reader.prices)  # 复制一份
-    # 添加标准合约代码映射
-    if 'MNQ' in futures_prices:
-        futures_prices['NQ'] = futures_prices['MNQ']
-    if 'MES' in futures_prices:
-        futures_prices['ES'] = futures_prices['MES']
-    if 'GC' in futures_prices:
-        futures_prices['MGC'] = futures_prices['GC']
-    if 'CL' in futures_prices:
-        futures_prices['MCL'] = futures_prices['CL']
+    # 发送期货价格快照：对应期货统一使用主连行情，TWS 行情仅保留在 IB 面板
+    futures_prices = future_service.build_snapshot()
     emit('futures_price_snapshot', {
         'prices': futures_prices,
-        'settlement_prices': future_service.sina_reader.settlement_prices,
-        'sources': future_service.sina_reader.sources,
+        'settlement_prices': future_service.build_settlement_snapshot(),
+        'sources': future_service.build_source_snapshot(),
         'timestamp': datetime.now().strftime('%Y-%m-%d %H:%M:%S')
     })
 
@@ -1040,8 +1070,7 @@ def get_ib_prices():
 def get_exchange_rate():
     """供前端实时拉取最新的汇率及对应日期"""
     try:
-        db_path = os.path.join(os.path.dirname(BASE_DIR), 'database', 'arb_master.db')
-        conn = sqlite3.connect(db_path)
+        conn = DatabaseManager()._get_conn()
         df = pd.read_sql("SELECT date, usd_cny_mid FROM exchange_rate ORDER BY date DESC LIMIT 1", conn)
         conn.close()
         if not df.empty:

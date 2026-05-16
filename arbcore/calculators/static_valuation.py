@@ -4,6 +4,7 @@
 import pandas as pd
 from datetime import datetime
 import logging
+from sqlalchemy import text
 from .valuation_math import calculate_magic_valuation
 
 logger = logging.getLogger(__name__)
@@ -23,11 +24,15 @@ class StaticValuationCalculator:
         category = fund.get('category', '')
         logger.info(f"=== 开始计算 {name} ({fund_code}) 静态估值 ===")
         
-        conn = self.db._get_conn()
+        engine = self.db.get_engine()
         
         # 1. & 2. 使用 Outer Join 联合 A股行情与汇率，构建全集日期基座
-        lof_df = pd.read_sql("SELECT date, price as close, nav FROM fund_data WHERE fund_code = ?", conn, params=(fund_code,))
-        fx_df = pd.read_sql("SELECT date, usd_cny_mid as exchange_rate FROM exchange_rate", conn)
+        lof_df = pd.read_sql(
+            text("SELECT date, price as close, nav FROM fund_data WHERE fund_code = :fund_code"),
+            engine,
+            params={"fund_code": fund_code},
+        )
+        fx_df = pd.read_sql(text("SELECT date, usd_cny_mid as exchange_rate FROM exchange_rate"), engine)
         df = pd.merge(lof_df, fx_df, on='date', how='outer')
         
         # 剔除未来的脏数据，并过滤掉啥都没有的幽灵行
@@ -36,7 +41,11 @@ class StaticValuationCalculator:
         df.dropna(subset=['close', 'nav', 'exchange_rate'], how='all', inplace=True)
         
         # 3. 匹配基金因子常数
-        factors_df = pd.read_sql("SELECT date, position as 仓位, hedge, calibration FROM fund_daily_factors WHERE fund_code = ?", conn, params=(fund_code,))
+        factors_df = pd.read_sql(
+            text("SELECT date, position as 仓位, hedge, calibration FROM fund_daily_factors WHERE fund_code = :fund_code"),
+            engine,
+            params={"fund_code": fund_code},
+        )
         df = pd.merge(df, factors_df, on='date', how='left')
         
         # 4. 匹配海外底层 ETF 行情
@@ -64,16 +73,28 @@ class StaticValuationCalculator:
             etf_symbols.append(sym)
             
             # 匹配价格
-            etf_df = pd.read_sql(f'SELECT date, price as "{sym}" FROM usa_etf_daily_prices WHERE symbol = ?', conn, params=(sym,))
+            etf_df = pd.read_sql(
+                text(f'SELECT date, price as `{sym}` FROM usa_etf_daily_prices WHERE symbol = :symbol'),
+                engine,
+                params={"symbol": sym},
+            )
             df = pd.merge(df, etf_df, on='date', how='left')
             
             # 匹配每日动态变化的真实仓位权重
-            weight_df = pd.read_sql(f'SELECT date, weight as "{sym}权重" FROM fund_basket_weights WHERE fund_code = ? AND underlying_symbol = ?', conn, params=(fund_code, sym))
+            weight_df = pd.read_sql(
+                text(f'SELECT date, weight as `{sym}权重` FROM fund_basket_weights WHERE fund_code = :fund_code AND underlying_symbol = :symbol'),
+                engine,
+                params={"fund_code": fund_code, "symbol": sym},
+            )
             df = pd.merge(df, weight_df, on='date', how='left')
             
         # 确保魔法锚点 ETF 也被拉入计算基座
         if primary_sym and primary_sym not in df.columns:
-            primary_df = pd.read_sql(f'SELECT date, price as "{primary_sym}" FROM usa_etf_daily_prices WHERE symbol = ?', conn, params=(primary_sym,))
+            primary_df = pd.read_sql(
+                text(f'SELECT date, price as `{primary_sym}` FROM usa_etf_daily_prices WHERE symbol = :symbol'),
+                engine,
+                params={"symbol": primary_sym},
+            )
             df = pd.merge(df, primary_df, on='date', how='left')
 
         # 5. 匹配大宗期货结算价行情
@@ -91,7 +112,11 @@ class StaticValuationCalculator:
                 elif fund_code in ['161125', '161127']: future_sym = 'ES'
                 
         if future_sym:
-            fut_df = pd.read_sql(f'SELECT date, settle_price as "{future_sym}_settle", calibration as "{future_sym}_calib" FROM futures_daily WHERE symbol = ?', conn, params=(future_sym,))
+            fut_df = pd.read_sql(
+                text(f'SELECT date, settle_price as `{future_sym}_settle`, calibration as `{future_sym}_calib` FROM futures_daily WHERE symbol = :symbol'),
+                engine,
+                params={"symbol": future_sym},
+            )
             df = pd.merge(df, fut_df, on='date', how='left')
             df['期货结算价'] = df[f"{future_sym}_settle"]
             
@@ -117,10 +142,12 @@ class StaticValuationCalculator:
             elif 'SPY' in trade_etf: idx_sym = '.INX'
             
         if idx_sym:
-            idx_df = pd.read_sql(f'SELECT date, price as "{idx_sym}" FROM index_daily WHERE symbol = ?', conn, params=(idx_sym,))
+            idx_df = pd.read_sql(
+                text(f'SELECT date, price as `{idx_sym}` FROM index_daily WHERE symbol = :symbol'),
+                engine,
+                params={"symbol": idx_sym},
+            )
             df = pd.merge(df, idx_df, on='date', how='left')
-        
-        conn.close()
         
         # ================= 极速矩阵运算核心 =================
         df['date'] = pd.to_datetime(df['date'])
@@ -142,13 +169,13 @@ class StaticValuationCalculator:
                 sym = f"^{sym}"
             w_col = f"{sym}权重"
             if w_col in df.columns:
-                df[w_col] = df[w_col].bfill().fillna(item.get('weight', 0))
+                df[w_col] = pd.to_numeric(df[w_col], errors='coerce').bfill().fillna(item.get('weight', 0))
                 
         # 3. 仓位终极兜底转换 (仅在连历史最老一天都没有API数据时才触发)
         default_pos = fund.get('holdings', {}).get('equity_ratio', 100)
         if default_pos > 1: default_pos = default_pos / 100.0
         if '仓位' in df.columns:
-            df['仓位'] = df['仓位'].fillna(default_pos)
+            df['仓位'] = pd.to_numeric(df['仓位'], errors='coerce').fillna(default_pos)
             df['仓位'] = df['仓位'].apply(lambda x: x / 100.0 if x > 1 else x)
         
         # 初始化计算列占位符
@@ -290,9 +317,8 @@ class StaticValuationCalculator:
 
         table_name = f"fund_history_{fund_code}"
         
-        conn = self.db._get_conn()
-        df.to_sql(table_name, conn, if_exists='replace', index=False)
-        conn.close()
+        df.drop_duplicates(subset=['date'], keep='first', inplace=True)
+        df.to_sql(table_name, self.db.get_engine(), if_exists='replace', index=False)
         
         # 提取最新一天的有效估值用于日志打印
         valid_df = df[df['static_valuation'].notna()]

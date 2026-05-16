@@ -10,19 +10,18 @@ import datetime
 import webbrowser
 import subprocess
 import json
-import sqlite3
 
 # 初始化路径
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+PROJECT_ROOT = os.path.dirname(SCRIPT_DIR)
 DATA_DIR = os.path.join(SCRIPT_DIR, "data")
 CONFIG_FILE = os.path.join(SCRIPT_DIR, "lof_config.yaml")
 OUTPUT_FILE = os.path.join(SCRIPT_DIR, "lof_monitor.html")
 
-# 共享数据库路径，按当前仓库位置自动定位到项目根目录下的 database/arb_master.db
-SHARED_DB_PATH = os.path.join(os.path.dirname(SCRIPT_DIR), "database", "arb_master.db")
-
 # 导入模块
+sys.path.insert(0, PROJECT_ROOT)
 sys.path.insert(0, SCRIPT_DIR)
+from arbcore.database.db_manager import DatabaseManager
 from LOF031_config_manager import ConfigManager
 from LOF032_data_processor import DataProcessor
 from LOF033_html_generator import HtmlGenerator
@@ -40,9 +39,9 @@ silver_fund_data = None
 # 辅助函数
 
 def read_fund_history_from_db(code):
-    """直接从 SQLite 数据库读取历史对账表，不再使用旧的 CSV Processor"""
+    """直接从 MySQL 数据库读取历史对账表，不再使用旧的 CSV Processor"""
     try:
-        conn = sqlite3.connect(SHARED_DB_PATH)
+        conn = DatabaseManager()._get_conn()
         df = pd.read_sql(f"SELECT * FROM fund_history_{code} ORDER BY date DESC", conn)
         conn.close()
         if 'date' in df.columns:
@@ -56,7 +55,7 @@ def get_exchange_rate():
     """获取当天的汇率"""
     today_exchange_rate = "无"
     try:
-        conn = sqlite3.connect(SHARED_DB_PATH)
+        conn = DatabaseManager()._get_conn()
         df = pd.read_sql("SELECT date, usd_cny_mid FROM exchange_rate ORDER BY date DESC LIMIT 1", conn)
         conn.close()
         if not df.empty:
@@ -1517,7 +1516,7 @@ def check_and_update_historical_data():
         
         table_name = f"fund_history_{code}"
         try:
-            conn = sqlite3.connect(SHARED_DB_PATH)
+            conn = DatabaseManager()._get_conn()
             df = pd.read_sql(f"SELECT * FROM {table_name}", conn)
             conn.close()
             
@@ -1661,7 +1660,7 @@ def generate(futures_data=None, ib_data=None):
 
     # ====== 新架构：直接从数据库读取全局通用参数 ======
     try:
-        conn = sqlite3.connect(SHARED_DB_PATH)
+        conn = DatabaseManager()._get_conn()
         # 获取最新全局汇率
         er_df = pd.read_sql("SELECT usd_cny_mid FROM exchange_rate ORDER BY date DESC LIMIT 1", conn)
         global_er = er_df.iloc[0]['usd_cny_mid'] if not er_df.empty else 7.0
@@ -2127,8 +2126,8 @@ def generate(futures_data=None, ib_data=None):
                 var futPriceEl = null;
                 if (futSym === 'GC' || futSym === 'MGC') futPriceEl = document.getElementById('gc-price');
                 else if (futSym === 'CL' || futSym === 'MCL') futPriceEl = document.getElementById('cl-price');
-                else if (futSym === 'NQ') futPriceEl = document.getElementById('nq-price');
-                else if (futSym === 'ES') futPriceEl = document.getElementById('es-price');
+                else if (futSym === 'NQ' || futSym === 'MNQ') futPriceEl = document.getElementById('nq-price');
+                else if (futSym === 'ES' || futSym === 'MES') futPriceEl = document.getElementById('es-price');
                 
                 var futPrice = '';
                 if (futPriceEl) {
@@ -2680,8 +2679,8 @@ def generate(futures_data=None, ib_data=None):
                     var futPriceEl = null;
                     if (futSym === 'GC' || futSym === 'MGC') futPriceEl = document.getElementById('gc-price');
                     else if (futSym === 'CL' || futSym === 'MCL') futPriceEl = document.getElementById('cl-price');
-                    else if (futSym === 'NQ') futPriceEl = document.getElementById('nq-price');
-                    else if (futSym === 'ES') futPriceEl = document.getElementById('es-price');
+                    else if (futSym === 'NQ' || futSym === 'MNQ') futPriceEl = document.getElementById('nq-price');
+                    else if (futSym === 'ES' || futSym === 'MES') futPriceEl = document.getElementById('es-price');
                     var sbRefEl = document.getElementById('sb-pure-ref-price-' + code);
                     if (sbRefEl && futPriceEl) sbRefEl.textContent = futPriceEl.textContent || '-';
                     
@@ -3096,8 +3095,8 @@ def generate(futures_data=None, ib_data=None):
                                     var futPrice = 0;
                                     if (baseData.futureSymbol === 'GC' || baseData.futureSymbol === 'MGC') futPrice = gcPrice;
                                     else if (baseData.futureSymbol === 'CL' || baseData.futureSymbol === 'MCL') futPrice = clPrice;
-                                    else if (baseData.futureSymbol === 'NQ') futPrice = nqPrice;
-                                    else if (baseData.futureSymbol === 'ES') futPrice = esPrice;
+                                    else if (baseData.futureSymbol === 'NQ' || baseData.futureSymbol === 'MNQ') futPrice = nqPrice;
+                                    else if (baseData.futureSymbol === 'ES' || baseData.futureSymbol === 'MES') futPrice = esPrice;
                                     
                                     if (futPrice > 0) {
                                         // 更新期货校准测试价输入框
@@ -3156,8 +3155,8 @@ def generate(futures_data=None, ib_data=None):
                     var futPrice = 0;
                     if (baseData.futureSymbol === 'GC' || baseData.futureSymbol === 'MGC') futPrice = gcPrice;
                     else if (baseData.futureSymbol === 'CL' || baseData.futureSymbol === 'MCL') futPrice = clPrice;
-                    else if (baseData.futureSymbol === 'NQ') futPrice = nqPrice;
-                    else if (baseData.futureSymbol === 'ES') futPrice = esPrice;
+                    else if (baseData.futureSymbol === 'NQ' || baseData.futureSymbol === 'MNQ') futPrice = nqPrice;
+                    else if (baseData.futureSymbol === 'ES' || baseData.futureSymbol === 'MES') futPrice = esPrice;
                     if (futPrice <= 0) return;
                     
                     if (!baseData.baseExchangeRate || isNaN(baseData.baseExchangeRate) || baseData.baseExchangeRate <= 0) {
@@ -3928,7 +3927,7 @@ def generate(futures_data=None, ib_data=None):
         # 优先使用本地基础数据文件
         try:
             import pandas as pd
-            conn = sqlite3.connect(SHARED_DB_PATH)
+            conn = DatabaseManager()._get_conn()
             df = pd.read_sql("SELECT * FROM basic_data", conn)
             conn.close()
             if symbol in df.columns:

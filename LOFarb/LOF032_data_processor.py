@@ -3,11 +3,11 @@ import os
 import re
 from datetime import datetime
 import pandas as pd
-import sqlite3
+import sys
 
-# 全局共享数据库路径 (动态获取项目根目录下的 database/arb_master.db)
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-SHARED_DB_PATH = os.path.join(BASE_DIR, "database", "arb_master.db")
+sys.path.append(BASE_DIR)
+from arbcore.database.db_manager import DatabaseManager
 
 class DataProcessor:
     """数据处理类"""
@@ -51,7 +51,7 @@ class DataProcessor:
         df = pd.DataFrame()
         
         try:
-            conn = sqlite3.connect(SHARED_DB_PATH)
+            conn = DatabaseManager()._get_conn()
             df = pd.read_sql(f"SELECT * FROM {table_name}", conn)
             conn.close()
         except Exception as e:
@@ -134,10 +134,10 @@ class DataProcessor:
         return pd.DataFrame()
     
     def read_basic_data(self):
-        """读取基础数据（从 SQLite 并行读取后合并输出，兼容旧版 CSV 结构）"""
+        """读取基础数据（从 MySQL 并行读取后合并输出，兼容旧版 CSV 结构）"""
         df = pd.DataFrame()
         try:
-            conn = sqlite3.connect(SHARED_DB_PATH)
+            conn = DatabaseManager()._get_conn()
             # 1. 读取汇率
             fx_df = pd.read_sql("SELECT date, usd_cny_mid as 人民币中间价 FROM exchange_rate", conn)
             if not fx_df.empty:

@@ -67,7 +67,7 @@ class DailyUpdater:
                 if not code: continue
                 
                 # 1. 查询最新仓位
-                pos_df = pd.read_sql("SELECT position FROM fund_daily_factors WHERE fund_code=? ORDER BY date DESC LIMIT 1", conn, params=(code,))
+                pos_df = pd.read_sql("SELECT position FROM fund_daily_factors WHERE fund_code=%s ORDER BY date DESC LIMIT 1", conn, params=(code,))
                 if not pos_df.empty and pd.notna(pos_df.iloc[0]['position']):
                     new_pos = float(pos_df.iloc[0]['position'])
                     if new_pos <= 1.5: new_pos = new_pos * 100  # 转换为百分比(防呆设计)
@@ -82,7 +82,7 @@ class DailyUpdater:
                         logger.info(f"🔄 [{code}] YAML仓位已同步: {old_pos}% -> {new_pos:.2f}%")
                 
                 # 2. 查询最新权重
-                weight_df = pd.read_sql("SELECT underlying_symbol, weight FROM fund_basket_weights WHERE fund_code=? AND date=(SELECT MAX(date) FROM fund_basket_weights WHERE fund_code=?)", conn, params=(code, code))
+                weight_df = pd.read_sql("SELECT underlying_symbol, weight FROM fund_basket_weights WHERE fund_code=%s AND date=(SELECT MAX(date) FROM fund_basket_weights WHERE fund_code=%s)", conn, params=(code, code))
                 if not weight_df.empty:
                     db_weights = {row['underlying_symbol'].replace('^', ''): float(row['weight']) for _, row in weight_df.iterrows() if pd.notna(row['weight'])}
                     
@@ -140,7 +140,7 @@ class DailyUpdater:
         conn = self.db._get_conn()
         try:
             cursor = conn.cursor()
-            cursor.execute("SELECT price, nav FROM fund_data WHERE date=? AND fund_code=?", (date_str, fund_code))
+            cursor.execute("SELECT price, nav FROM fund_data WHERE date=%s AND fund_code=%s", (date_str, fund_code))
             row = cursor.fetchone()
             
             exist_price = row[0] if row and row[0] is not None else None
@@ -176,7 +176,7 @@ class DailyUpdater:
                 logger.info(f"✅ [{code}] 今日已获取过历史收盘价，跳过新浪接口...")
                 conn = self.db._get_conn()
                 cursor = conn.cursor()
-                cursor.execute("SELECT date FROM fund_data WHERE fund_code = ? AND price IS NOT NULL ORDER BY date DESC LIMIT 2", (code,))
+                cursor.execute("SELECT date FROM fund_data WHERE fund_code = %s AND price IS NOT NULL ORDER BY date DESC LIMIT 2", (code,))
                 rows = cursor.fetchall()
                 if rows and len(rows) > 0:
                     latest_date = rows[0][0]
@@ -214,7 +214,7 @@ class DailyUpdater:
             
             conn = self.db._get_conn()
             cursor = conn.cursor()
-            cursor.execute("SELECT MAX(date) FROM fund_data WHERE fund_code = ? AND nav IS NOT NULL", (code,))
+            cursor.execute("SELECT MAX(date) FROM fund_data WHERE fund_code = %s AND nav IS NOT NULL", (code,))
             max_nav_row = cursor.fetchone()
             conn.close()
             
