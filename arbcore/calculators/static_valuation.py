@@ -15,6 +15,43 @@ class StaticValuationCalculator:
         传入 DatabaseManager 实例以复用 SQLite 连接
         """
         self.db = db_manager
+
+    def _get_latest_future_calibration(self, fund_code: str, preferred_symbol: str | None = None):
+        engine = self.db.get_engine()
+        params = {"fund_code": fund_code}
+        symbol_filter = ""
+        if preferred_symbol:
+            symbol_filter = " AND symbol = :preferred_symbol"
+            params["preferred_symbol"] = preferred_symbol
+
+        try:
+            df = pd.read_sql(
+                text(
+                    f"""
+                    SELECT calibration, data_date
+                    FROM `futureCalibration`
+                    WHERE source_fund_code = :fund_code
+                      AND calibration IS NOT NULL
+                      AND data_date IS NOT NULL
+                      {symbol_filter}
+                    ORDER BY data_date DESC, updated_at DESC
+                    LIMIT 1
+                    """
+                ),
+                engine,
+                params=params,
+            )
+            if df.empty and preferred_symbol:
+                return self._get_latest_future_calibration(fund_code)
+            if df.empty or pd.isna(df.iloc[0]["calibration"]):
+                return None
+            return {
+                "calibration": float(df.iloc[0]["calibration"]),
+                "data_date": str(df.iloc[0]["data_date"])[:10],
+            }
+        except Exception as e:
+            logger.warning(f"读取 futureCalibration 失败: fund_code={fund_code}, symbol={preferred_symbol}, error={e}")
+            return None
         
     def process_fund(self, fund):
         fund_code = str(fund.get('code', ''))
@@ -124,6 +161,21 @@ class StaticValuationCalculator:
                 df.rename(columns={f"{future_sym}_calib": '黄金期货校准'}, inplace=True)
             elif category == '原油':
                 df.rename(columns={f"{future_sym}_calib": '原油期货校准'}, inplace=True)
+
+        index_future_calib_cols = []
+        index_future_calib_col = {
+            "161125": "标普期货校准",
+            "161130": "纳指期货校准",
+        }.get(fund_code)
+        if index_future_calib_col:
+            preferred_symbol = str(fund.get("trade_etf", "")).strip().upper() or None
+            latest_calibration_info = self._get_latest_future_calibration(fund_code, preferred_symbol)
+            if latest_calibration_info is not None:
+                df[index_future_calib_col] = pd.NA
+                date_mask = pd.to_datetime(df["date"]).dt.strftime("%Y-%m-%d") == latest_calibration_info["data_date"]
+                df.loc[date_mask, index_future_calib_col] = latest_calibration_info["calibration"]
+                df[index_future_calib_col] = pd.to_numeric(df[index_future_calib_col], errors="coerce")
+                index_future_calib_cols.append(index_future_calib_col)
 
         # 6. 匹配纯净指数行情 (如果有)
         idx_url = fund.get('sina_index_url', '')
@@ -301,6 +353,7 @@ class StaticValuationCalculator:
         fut_basic_cols, fut_val_cols = [], []
         if future_sym:
             fut_basic_cols = [f"{future_sym}_settle", f"{future_sym}_calib", '期货结算价', '黄金期货校准', '原油期货校准']
+            fut_basic_cols += index_future_calib_cols
             fut_val_cols = ['期货静态估值', '期货静态估值误差', '期货静态估值溢价']
             
         idx_basic_cols = [idx_sym] if idx_sym else []

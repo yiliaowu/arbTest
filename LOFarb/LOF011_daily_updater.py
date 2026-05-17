@@ -6,8 +6,10 @@ import json
 import yaml
 import logging
 from datetime import datetime, timedelta
+from io import StringIO
 import pandas as pd
 import re
+import requests
 
 # 引入公共基座
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -35,6 +37,18 @@ logger = logging.getLogger(__name__)
 # 降低底层爬虫组件的日志输出级别，防止终端被大量细节刷屏
 logging.getLogger('arbcore.fetchers.data_fetcher').setLevel(logging.WARNING)
 
+FUTURE_CALIBRATION_URLS = [
+    "https://www.palmmicro.com/woody/res/sz160719cn.php",
+    "https://www.palmmicro.com/woody/res/sz160723cn.php",
+    "https://www.palmmicro.com/woody/res/sz161125cn.php",
+    "https://www.palmmicro.com/woody/res/sz161130cn.php",
+]
+
+TRACKING_SYMBOL_ALIASES = {
+    "^GSPC": "ES",
+    "^NDX": "NQ",
+}
+
 class DailyUpdater:
     def __init__(self):
         self.db = DatabaseManager()
@@ -54,6 +68,113 @@ class DailyUpdater:
         
         # 调用统一接口进行获取和解析
         return WoodyAPIService.fetch_and_process(self.db, codes, backup_dir, source_id='woody_lof')
+
+    @staticmethod
+    def _clean_table_column(col):
+        if isinstance(col, tuple):
+            for part in reversed(col):
+                part = str(part).strip()
+                if part and not part.startswith("Unnamed"):
+                    return part
+            return str(col[-1]).strip()
+        return str(col).strip()
+
+    @staticmethod
+    def _to_float(value):
+        if pd.isna(value):
+            return None
+        text = str(value).strip().replace(",", "").replace("%", "")
+        if not text or text.lower() == "nan":
+            return None
+        try:
+            return float(text)
+        except ValueError:
+            return None
+
+    @staticmethod
+    def _to_date_str(value):
+        if pd.isna(value):
+            return None
+        text = str(value).strip()
+        if not text or text.lower() == "nan":
+            return None
+        try:
+            return pd.to_datetime(text).strftime("%Y-%m-%d")
+        except Exception:
+            return text
+
+    def _fetch_palmmicro_html(self, url):
+        headers = {"User-Agent": "Mozilla/5.0"}
+        resp = requests.get(url, headers=headers, timeout=25)
+        resp.raise_for_status()
+        resp.encoding = "utf-8"
+        return resp.text
+
+    def _parse_future_calibration_rows(self, url, html):
+        source_match = re.search(r"/(?:sz|sh)(\d+)cn\.php", url, re.IGNORECASE)
+        source_fund_code = source_match.group(1) if source_match else ""
+        rows = []
+
+        tables = pd.read_html(StringIO(html))
+        required_cols = {"代码", "跟踪代码", "仓位", "校准值", "日期"}
+        for table in tables:
+            table = table.copy()
+            table.columns = [self._clean_table_column(c) for c in table.columns]
+            if not required_cols.issubset(set(table.columns)):
+                continue
+
+            value_label = "参考值" if "参考值" in table.columns else "对冲值" if "对冲值" in table.columns else None
+            for _, row in table.iterrows():
+                symbol = "" if pd.isna(row.get("代码")) else str(row.get("代码")).strip()
+                tracking_symbol = "" if pd.isna(row.get("跟踪代码")) else str(row.get("跟踪代码")).strip()
+                tracking_symbol = TRACKING_SYMBOL_ALIASES.get(tracking_symbol, tracking_symbol)
+                if not symbol or not tracking_symbol or symbol.lower() == "nan" or tracking_symbol.lower() == "nan":
+                    continue
+
+                value = self._to_float(row.get(value_label)) if value_label else None
+                rows.append({
+                    "source_fund_code": source_fund_code,
+                    "symbol": symbol,
+                    "tracking_symbol": tracking_symbol,
+                    "position": self._to_float(row.get("仓位")),
+                    "calibration": self._to_float(row.get("校准值")),
+                    "data_date": self._to_date_str(row.get("日期")),
+                    "reference_value": value if value_label == "参考值" else None,
+                    "hedge_value": value if value_label == "对冲值" else None,
+                    "value_label": value_label,
+                    "source_url": url,
+                })
+            break
+        return rows
+
+    def step2_1_fetch_future_calibration(self):
+        """步骤2.1：从 Palmmicro 基金指数对照表抓取期货校准数据并写入 MySQL。"""
+        logger.info("=== 步骤2.1：抓取 Palmmicro futureCalibration 数据 ===")
+        today_str = datetime.now().strftime('%Y-%m-%d')
+        if self.db.is_access_synced_today(today_str, source='palmmicro_future_calibration'):
+            logger.info("[OK] 今日已抓取过 Palmmicro futureCalibration，跳过。")
+            return
+
+        saved_count = 0
+        for url in FUTURE_CALIBRATION_URLS:
+            try:
+                html = self._fetch_palmmicro_html(url)
+                rows = self._parse_future_calibration_rows(url, html)
+                if not rows:
+                    logger.warning(f"[WARN] 未在页面中找到基金指数对照表数据: {url}")
+                    continue
+                for row in rows:
+                    self.db.upsert_future_calibration(row)
+                    saved_count += 1
+                logger.info(f"[OK] futureCalibration 入库完成: {url} -> {len(rows)} 行")
+            except Exception as e:
+                logger.error(f"[ERROR] 抓取 futureCalibration 失败: {url} ({e})")
+
+        if saved_count > 0:
+            self.db.mark_access_synced(today_str, source='palmmicro_future_calibration')
+            logger.info(f"[OK] futureCalibration 本轮共更新 {saved_count} 行")
+        else:
+            logger.error("[ERROR] futureCalibration 本轮没有写入任何数据")
 
     def step2_5_sync_yaml_with_latest_factors(self):
         """步骤2.5：将数据库中最新的真实仓位和权重同步反写回 lof_config.yaml"""
@@ -415,6 +536,7 @@ class DailyUpdater:
     def run(self):
         logger.info("🚀 开始执行每日数据大一统更新流水线...")
         self.step1_and_2_fetch_woody_api()
+        self.step2_1_fetch_future_calibration()
         self.step2_5_sync_yaml_with_latest_factors()
             
         self.step3_fetch_exchange_rate()

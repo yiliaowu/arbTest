@@ -147,6 +147,24 @@ class DatabaseManager:
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
             """,
             """
+            CREATE TABLE IF NOT EXISTS `futureCalibration` (
+                source_fund_code VARCHAR(32) NOT NULL,
+                symbol VARCHAR(64) NOT NULL,
+                tracking_symbol VARCHAR(64) NOT NULL,
+                position DOUBLE,
+                calibration DOUBLE,
+                data_date VARCHAR(10),
+                reference_value DOUBLE,
+                hedge_value DOUBLE,
+                value_label VARCHAR(32),
+                source_url VARCHAR(255),
+                updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                PRIMARY KEY (source_fund_code, symbol, tracking_symbol),
+                INDEX idx_future_calibration_date (data_date),
+                INDEX idx_future_calibration_tracking (tracking_symbol)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+            """,
+            """
             CREATE TABLE IF NOT EXISTS fund_basket_weights (
                 date VARCHAR(10) NOT NULL,
                 fund_code VARCHAR(32) NOT NULL,
@@ -294,6 +312,21 @@ class DatabaseManager:
         if not update_cols:
             update_cols = ["symbol"]
         self._upsert("futures_daily", data, update_cols=update_cols)
+
+    def upsert_future_calibration(self, data: Dict[str, Any]):
+        self._upsert(
+            "futureCalibration",
+            data,
+            update_cols=[
+                "position",
+                "calibration",
+                "data_date",
+                "reference_value",
+                "hedge_value",
+                "value_label",
+                "source_url",
+            ],
+        )
 
     def upsert_usa_etf_price(self, date: str, symbol: str, price: float):
         self._upsert("usa_etf_daily_prices", {"date": date, "symbol": symbol, "price": price})
