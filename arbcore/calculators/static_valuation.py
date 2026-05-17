@@ -173,10 +173,10 @@ class StaticValuationCalculator:
                 
         # 3. 仓位终极兜底转换 (仅在连历史最老一天都没有API数据时才触发)
         default_pos = fund.get('holdings', {}).get('equity_ratio', 100)
-        if default_pos > 1: default_pos = default_pos / 100.0
+        if default_pos > 1.5: default_pos = default_pos / 100.0
         if '仓位' in df.columns:
             df['仓位'] = pd.to_numeric(df['仓位'], errors='coerce').fillna(default_pos)
-            df['仓位'] = df['仓位'].apply(lambda x: x / 100.0 if x > 1 else x)
+            df['仓位'] = df['仓位'].apply(lambda x: x / 100.0 if x > 1.5 else x)
         
         # 初始化计算列占位符
         df['static_valuation'] = None

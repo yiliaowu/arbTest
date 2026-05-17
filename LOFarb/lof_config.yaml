@@ -164,8 +164,8 @@ funds:
   trade_etf: GLD,USO
   trade_future: ''
   holdings:
-    equity_ratio: 1.01
-    cash_ratio: 98.99
+    equity_ratio: 101.23
+    cash_ratio: -1.23
   valuation_portfolio:
   - symbol: GLD
     weight: 35.06
@@ -182,7 +182,7 @@ funds:
   sina_index_url: ''
   holdings_portfolio: []
   future_hedging: []
-  position: 1.01
+  position: 101.23
 - code: '161815'
   name: 银华抗通胀
   category: 黄金
@@ -346,8 +346,8 @@ funds:
   name: 汇添富贵金属
   category: 黄金
   holdings:
-    equity_ratio: 1.0
-    cash_ratio: 99.0
+    equity_ratio: 100.44
+    cash_ratio: -0.44
   holdings_portfolio:
   - symbol: UGL
     weight: 33.165
@@ -415,14 +415,14 @@ funds:
     currency: USD
     exchange: SMART
   - symbol: SLV
-    weight: 0.08
+    weight: -0.34
     anchor: US
     name: ''
     currency: USD
     exchange: SMART
   trade_etf: GLD
   trade_future: MGC
-  position: 1.0
+  position: 100.44
 - code: '165513'
   name: 中信保诚
   category: 黄金

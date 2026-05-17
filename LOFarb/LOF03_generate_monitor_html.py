@@ -1138,16 +1138,16 @@ def generate_fund_data(fund, data_processor, html_generator, futures_data, futur
                         </div>
 
                         <!-- 【区域名称：下单区】 -->
-                        <div style="display: flex; gap: 40px; justify-content: center; flex-wrap: wrap; width: 100%;">
+                        <div style="display: flex; gap: 16px; justify-content: center; flex-wrap: wrap; width: 100%;">
                             <!-- 下单区-1：A股 LOF下单区 (支持QMT/TDX双通道) -->
-                            <div style="display: flex; flex-direction: column; align-items: flex-start; gap: 2px; width: 320px;">
-                                <div style="display: flex; align-items: center; gap: 4px; background: #fff5f5; padding: 3px 8px; border-radius: 4px; border: 1px solid #ffcdd2; white-space: nowrap;">
+                            <div style="display: flex; flex-direction: column; align-items: flex-start; gap: 2px; flex: 0 0 460px; min-width: 460px; max-width: 460px; box-sizing: border-box;">
+                                <div style="display: flex; align-items: center; gap: 4px; background: #fff5f5; padding: 3px 8px; border-radius: 4px; border: 1px solid #ffcdd2; white-space: nowrap; flex-wrap: wrap; width: 100%; box-sizing: border-box;">
                                     <select id="trade-broker-{code}-etf" style="font-size:11px; padding:1px; border:1px solid #ffcdd2; border-radius:3px; background:#fff; color:#d32f2f; font-weight:bold; cursor:pointer;" title="选择实盘交易通道">
                                         <option value="yinhe_qmt">银河QMT (8888)</option>
                                         <option value="guojin_qmt">国金QMT (原生)</option>
                                         <option value="tdx">通达信(暂无下单功能)</option>
                                     </select>
-                                    <span style="font-weight:bold; color:#d32f2f; font-size:11px;">{name}:</span>
+                                    <span style="font-weight:bold; color:#d32f2f; font-size:11px; max-width: 120px; overflow: hidden; text-overflow: ellipsis;">{name}:</span>
                                     <span style="color:#666; font-size: 11px;">数量:</span>
                                     <input type="number" id="trade-vol-{code}-etf" value="100" step="100" oninput="this.dataset.manual='true'" style="width:60px; padding:2px; border:1px solid #ccc; border-radius:4px; font-family:Consolas; font-weight:bold; font-size:11px;">
                                     <span style="color:#666; font-size: 11px;">限价:</span>
@@ -1161,8 +1161,8 @@ def generate_fund_data(fund, data_processor, html_generator, futures_data, futur
                 suffix = f"etf" if idx == 0 else f"etf_{idx}"
                 html += f"""
                             <!-- 下单区-2：IB ETF下单区 ({us_sym}) -->
-                            <div style="display: flex; flex-direction: column; align-items: flex-start; gap: 2px; width: 320px;">
-                                <div style="display: flex; align-items: center; gap: 6px; background: #e3f2fd; padding: 3px 8px; border-radius: 4px; border: 1px solid #bbdefb; white-space: nowrap;">
+                            <div style="display: flex; flex-direction: column; align-items: flex-start; gap: 2px; flex: 1 1 320px; min-width: 300px; max-width: 380px; box-sizing: border-box;">
+                                <div style="display: flex; align-items: center; gap: 6px; background: #e3f2fd; padding: 3px 8px; border-radius: 4px; border: 1px solid #bbdefb; white-space: nowrap; flex-wrap: wrap; width: 100%; box-sizing: border-box;">
                                     <span style="font-weight:bold; color:#1565c0; font-size:11px;">🌍 IB {us_sym}:</span>
                                     <input type="hidden" id="ib-trade-sym-{code}-{suffix}" value="{us_sym}">
                                     <span style="color:#666; font-size: 11px;">数量:</span>
@@ -1177,8 +1177,8 @@ def generate_fund_data(fund, data_processor, html_generator, futures_data, futur
             if has_future:
                 html += f"""
                             <!-- 下单区-3：IB期货下单区 -->
-                            <div style="display: flex; flex-direction: column; align-items: flex-start; gap: 2px; width: 320px;">
-                                <div style="display: flex; align-items: center; gap: 6px; background: #fff3e0; padding: 3px 8px; border-radius: 4px; border: 1px solid #ffcc80; white-space: nowrap;">
+                            <div style="display: flex; flex-direction: column; align-items: flex-start; gap: 2px; flex: 1 1 320px; min-width: 300px; max-width: 380px; box-sizing: border-box;">
+                                <div style="display: flex; align-items: center; gap: 6px; background: #fff3e0; padding: 3px 8px; border-radius: 4px; border: 1px solid #ffcc80; white-space: nowrap; flex-wrap: wrap; width: 100%; box-sizing: border-box;">
                                     <span style="font-weight:bold; color:#e65100; font-size:11px;">🌍 IB期货 ({future_symbol}):</span>
                                     <span style="color:#666; font-size: 11px;">数量:</span>
                                     <input type="number" id="ib-future-vol-{code}" value="1" step="1" oninput="this.dataset.manual='true'" style="width:60px; padding:2px; border:1px solid #ccc; border-radius:4px; font-family:Consolas; font-weight:bold; font-size:11px;">
@@ -1704,7 +1704,7 @@ def generate(futures_data=None, ib_data=None):
 
         if base_date and base_nav:
             position = fund.get('holdings', {}).get('equity_ratio', 100.0) / 100.0
-            if position > 1: position = position / 100.0
+            if position > 1.5: position = position / 100.0
             hedging_portfolio = fund.get('hedging_portfolio', [])
             hedging_portfolio = fund.get('valuation_portfolio', [])
             
