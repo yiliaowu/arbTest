@@ -193,10 +193,25 @@ def add_cors_headers(response):
 
 def on_ib_price_update(data):
     socketio.emit('ib_price_update', data)
-    
-# 创建唯一的实例，使用随机 Client ID 防止僵尸进程占用冲突
-ib_reader_instance = IBReader(client_id=random.randint(5000, 9999), on_price_update=on_ib_price_update)
-atexit.register(ib_reader_instance.disconnect_from_ib)
+    sym = str(data.get('symbol', '')).upper()
+    if sym in {'MGC', 'MCL', 'MNQ', 'MES'}:
+        price_data = data.get('prices', {}).get(sym, {})
+        if isinstance(price_data, dict):
+            price = next((price_data.get(k, 0) for k in ('last', 'price', 'bid', 'ask', 'close') if price_data.get(k, 0) > 0), 0)
+            if price > 0:
+                socketio.emit('futures_price_update', {
+                    'symbol': sym,
+                    'price': price,
+                    'timestamp': data.get('timestamp', datetime.now().strftime('%H:%M:%S.%f')[:-3]),
+                    'source': 'TWS'
+                })
+
+def should_emit_futures_update(symbol, emit_symbols=None):
+    if emit_symbols is not None and symbol not in emit_symbols:
+        return False
+    if symbol in {'GC', 'MGC', 'CL', 'MCL', 'NQ', 'MNQ', 'ES', 'MES'}:
+        return False
+    return True
 
 # ==========================================
 # 数据获取模块 DataFetcher
@@ -261,7 +276,7 @@ class SinaFuturesReader:
         return (cp - pp) / pp * 100 if pp > 0 else 0.0
     
     def _should_emit(self, alias, emit_symbols):
-        return emit_symbols is None or alias in emit_symbols
+        return should_emit_futures_update(alias, emit_symbols)
 
     def update_prices(self, emit_symbols=None):
         # 移除交易时间限制，确保美股期货数据始终更新
@@ -875,6 +890,8 @@ atexit.register(ib_reader_instance.disconnect_from_ib)
 
 # 创建FuturePriceService，传入IB reader引用
 class FuturePriceService:
+    TWS_MICRO_FUTURES = {'GC', 'MGC', 'CL', 'MCL', 'NQ', 'MNQ', 'ES', 'MES'}
+
     def __init__(self, ib_reader):
         self.ib_reader = ib_reader
         self.sina_reader = SinaFuturesReader()  # 仅作为备用
@@ -898,7 +915,7 @@ class FuturePriceService:
         ib_symbol = self._map_symbol(symbol)
         ib_data = self.ib_reader.prices.get(ib_symbol, {})
         if ib_data and isinstance(ib_data, dict):
-            for key in ('bid', 'last', 'price', 'close', 'ask'):
+            for key in ('last', 'price', 'bid', 'ask', 'close'):
                 if ib_data.get(key, 0) > 0:
                     return ib_data[key]
         return 0
@@ -908,9 +925,13 @@ class FuturePriceService:
 
     def get_price(self, symbol):
         ib_symbol = self._map_symbol(symbol)
-        # 对应期货页面使用主连期货行情；TWS 行情保留给 IB 面板。
         if symbol == 'AG0':
             return self.sse_reader.ag0_price if self.sse_reader.ag0_price > 0 else self.sina_reader.prices.get('AG', 0)
+        ib_price = self._ib_price(symbol)
+        if ib_price > 0:
+            return ib_price
+        if symbol in self.TWS_MICRO_FUTURES:
+            return 0
         return self.sina_reader.prices.get(ib_symbol, self.sina_reader.prices.get(symbol, 0))
 
     def _map_symbol(self, symbol):
@@ -941,6 +962,14 @@ class FuturePriceService:
     def get_source(self, symbol):
         ib_symbol = self._map_symbol(symbol)
         if symbol == 'AG0': return 'SSE' if self.sse_reader.ag0_price > 0 else '新浪API'
+        if self._has_tws_price(symbol):
+            month = getattr(self.ib_reader, 'future_contract_months', {}).get(ib_symbol, '')
+            suffix = f"{month} " if month else ""
+            return f"TWS {suffix}{ib_symbol}"
+        if symbol in self.TWS_MICRO_FUTURES:
+            if not getattr(self.ib_reader, 'connected', False):
+                return 'TWS未连接'
+            return f"TWS未读到{ib_symbol}"
         if self.sina_reader.prices.get(ib_symbol, 0) > 0 or self.sina_reader.prices.get(symbol, 0) > 0:
             return f"主连期货({self.sina_reader.get_source(ib_symbol)})"
         return '未知'
@@ -1016,7 +1045,7 @@ def handle_connect():
         'prices': lof_price_reader.lof_prices,
         'timestamp': datetime.now().strftime('%Y-%m-%d %H:%M:%S')
     })
-    # 发送期货价格快照：对应期货统一使用主连行情，TWS 行情仅保留在 IB 面板
+    # 发送期货价格快照：优先 TWS 微型合约，缺失时回落主连行情
     futures_prices = future_service.build_snapshot()
     emit('futures_price_snapshot', {
         'prices': futures_prices,
@@ -1049,8 +1078,8 @@ def get_futures_data():
         # 微型合约代码（同时返回以兼容）
         'MNQ': {'price': mnq_price, 'change_percent': mnq_change, 'source': mnq_source},
         'MES': {'price': mes_price, 'change_percent': mes_change, 'source': mes_source},
-        'MGC': {'price': future_service.get_price('GC'), 'change_percent': future_service.get_change_percent('GC'), 'source': future_service.get_source('GC')},
-        'MCL': {'price': future_service.get_price('CL'), 'change_percent': future_service.get_change_percent('CL'), 'source': future_service.get_source('CL')},
+        'MGC': {'price': future_service.get_price('MGC'), 'change_percent': future_service.get_change_percent('MGC'), 'source': future_service.get_source('MGC')},
+        'MCL': {'price': future_service.get_price('MCL'), 'change_percent': future_service.get_change_percent('MCL'), 'source': future_service.get_source('MCL')},
         'timestamp': int(time.time()),
         'is_trading_time': is_trading
     }
@@ -1174,17 +1203,17 @@ def sse_futures():
         while True:
             is_trading = future_service.sina_reader.is_trading_time()
             # 获取价格数据
-            gc_price = future_service.get_price('GC')
-            cl_price = future_service.get_price('CL')
+            gc_price = future_service.get_price('MGC')
+            cl_price = future_service.get_price('MCL')
             nq_price = future_service.get_price('NQ')  # 会映射到MNQ
             es_price = future_service.get_price('ES')  # 会映射到MES
             ag0_price = future_service.get_price('AG0')
             data_dict = {
                 # 标准和微型合约都返回
                 'GC': {'price': gc_price, 'change_percent': future_service.get_change_percent('GC'), 'source': future_service.get_source('GC')},
-                'MGC': {'price': gc_price, 'change_percent': future_service.get_change_percent('GC'), 'source': future_service.get_source('GC')},
+                'MGC': {'price': gc_price, 'change_percent': future_service.get_change_percent('MGC'), 'source': future_service.get_source('MGC')},
                 'CL': {'price': cl_price, 'change_percent': future_service.get_change_percent('CL'), 'source': future_service.get_source('CL')},
-                'MCL': {'price': cl_price, 'change_percent': future_service.get_change_percent('CL'), 'source': future_service.get_source('CL')},
+                'MCL': {'price': cl_price, 'change_percent': future_service.get_change_percent('MCL'), 'source': future_service.get_source('MCL')},
                 'NQ': {'price': nq_price, 'change_percent': future_service.get_change_percent('NQ'), 'source': future_service.get_source('NQ')},
                 'MNQ': {'price': nq_price, 'change_percent': future_service.get_change_percent('NQ'), 'source': future_service.get_source('NQ')},
                 'ES': {'price': es_price, 'change_percent': future_service.get_change_percent('ES'), 'source': future_service.get_source('ES')},
@@ -1213,10 +1242,14 @@ def index():
         is_trading = future_service.sina_reader.is_trading_time()
         f_data = {
             'GC': {'price': future_service.get_price('GC'), 'change_percent': future_service.get_change_percent('GC'), 'source': future_service.get_source('GC')},
+            'MGC': {'price': future_service.get_price('MGC'), 'change_percent': future_service.get_change_percent('MGC'), 'source': future_service.get_source('MGC')},
             'CL': {'price': future_service.get_price('CL'), 'change_percent': future_service.get_change_percent('CL'), 'source': future_service.get_source('CL')},
+            'MCL': {'price': future_service.get_price('MCL'), 'change_percent': future_service.get_change_percent('MCL'), 'source': future_service.get_source('MCL')},
             'AG0': {'price': future_service.get_price('AG0'), 'change_percent': future_service.get_change_percent('AG0'), 'settlement': future_service.get_settlement_price('AG0'), 'vwap': future_service.get_vwap('AG0'), 'source': future_service.get_source('AG0')},
             'NQ': {'price': future_service.get_price('NQ'), 'change_percent': future_service.get_change_percent('NQ'), 'source': future_service.get_source('NQ')},
+            'MNQ': {'price': future_service.get_price('MNQ'), 'change_percent': future_service.get_change_percent('MNQ'), 'source': future_service.get_source('MNQ')},
             'ES': {'price': future_service.get_price('ES'), 'change_percent': future_service.get_change_percent('ES'), 'source': future_service.get_source('ES')},
+            'MES': {'price': future_service.get_price('MES'), 'change_percent': future_service.get_change_percent('MES'), 'source': future_service.get_source('MES')},
             'timestamp': int(time.time()),
             'is_trading_time': is_trading
         }

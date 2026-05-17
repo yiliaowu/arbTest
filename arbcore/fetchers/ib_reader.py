@@ -47,9 +47,23 @@ class IBReader(EWrapper, EClient):
         self.future_contract_specs = {
             "MGC": {"exchange": "COMEX", "tradingClass": "MGC", "multiplier": "10"},
             "MCL": {"exchange": "NYMEX", "tradingClass": "MCL", "multiplier": "100"},
-            "MES": {"exchange": "GLOBEX", "tradingClass": "MES", "multiplier": "5"},
-            "MNQ": {"exchange": "GLOBEX", "tradingClass": "MNQ", "multiplier": "2"},
+            "MES": {"exchange": "CME", "tradingClass": "MES", "multiplier": "5"},
+            "MNQ": {"exchange": "CME", "tradingClass": "MNQ", "multiplier": "2"},
         }
+        self.micro_future_map = {"GC": "MGC", "CL": "MCL", "ES": "MES", "NQ": "MNQ"}
+        self.non_ib_symbols = {"沪银AG", "沪银", "AG", "AG0", "AGM"}
+        self.standard_future_map = {"MGC": "GC", "MCL": "CL", "MES": "ES", "MNQ": "NQ"}
+        self.standard_future_specs = {
+            "GC": {"exchange": "COMEX", "tradingClass": "GC"},
+            "CL": {"exchange": "NYMEX", "tradingClass": "CL"},
+            "ES": {"exchange": "CME", "tradingClass": "ES"},
+            "NQ": {"exchange": "CME", "tradingClass": "NQ"},
+        }
+        self.config_path = self._resolve_config_path()
+        self.contract_detail_req_symbols = {}
+        self.contract_detail_events = {}
+        self.contract_detail_data = {}
+        self.last_contract_month_refresh = 0
         self.running = False
         self.polling_thread = None
 
@@ -86,6 +100,24 @@ class IBReader(EWrapper, EClient):
             return month[:6]
         return month
 
+    def _to_micro_future(self, sym):
+        sym = str(sym or "").strip().upper()
+        if sym in self.non_ib_symbols:
+            return ""
+        return self.micro_future_map.get(sym, sym)
+
+    def _resolve_config_path(self):
+        candidates = [
+            os.environ.get("LOF_CONFIG_PATH"),
+            os.path.join(os.getcwd(), "lof_config.yaml"),
+            os.path.join(os.getcwd(), "LOFarb", "lof_config.yaml"),
+            os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "LOFarb", "lof_config.yaml")),
+        ]
+        for path in candidates:
+            if path and os.path.exists(path):
+                return path
+        return "lof_config.yaml"
+
     def _build_contract(self, sym):
         contract = Contract()
         if sym == "GLD":
@@ -110,6 +142,114 @@ class IBReader(EWrapper, EClient):
         contract.symbol, contract.secType, contract.currency = sym, "STK", "USD"
         contract.exchange = "OVERNIGHT"
         return contract
+
+    def _build_standard_future_chain_contract(self, micro_sym):
+        std_sym = self.standard_future_map.get(micro_sym, micro_sym)
+        spec = self.standard_future_specs.get(std_sym, {})
+        contract = Contract()
+        contract.symbol = std_sym
+        contract.secType = "FUT"
+        contract.currency = "USD"
+        contract.exchange = spec.get("exchange", "SMART")
+        contract.tradingClass = spec.get("tradingClass", std_sym)
+        return contract
+
+    def _build_standard_cont_future_contract(self, micro_sym):
+        contract = self._build_standard_future_chain_contract(micro_sym)
+        contract.secType = "CONTFUT"
+        return contract
+
+    def _set_future_contract_month(self, sym, month):
+        month = self._normalize_contract_month(month)
+        if not month or sym not in self.future_symbols:
+            return
+        old_month = self.future_contract_months.get(sym, "")
+        self.future_contract_months[sym] = month
+        if old_month and old_month != month and sym in self.symbol_req_ids:
+            req_id = self.symbol_req_ids.pop(sym, None)
+            if req_id is not None:
+                self.mkt_req_ids.pop(req_id, None)
+                try:
+                    self.cancelMktData(req_id)
+                except Exception:
+                    pass
+            print(f"[IBReader] {sym} 主连月份切换: {old_month} -> {month}，已重建订阅。")
+
+    def _month_from_local_symbol(self, local_symbol):
+        local_symbol = str(local_symbol or "").strip().upper().replace(" ", "")
+        month_codes = {"F": "01", "G": "02", "H": "03", "J": "04", "K": "05", "M": "06", "N": "07", "Q": "08", "U": "09", "V": "10", "X": "11", "Z": "12"}
+        for i in range(len(local_symbol) - 1):
+            code = local_symbol[i]
+            year_part = local_symbol[i + 1:]
+            if code not in month_codes or not year_part.isdigit():
+                continue
+            if len(year_part) == 1:
+                year = 2020 + int(year_part)
+            elif len(year_part) == 2:
+                year = 2000 + int(year_part)
+            else:
+                continue
+            return f"{year}{month_codes[code]}"
+        return ""
+
+    def _pick_front_contract_month(self, details):
+        today_yyyymm = datetime.now().strftime("%Y%m")
+        months = []
+        for detail in details or []:
+            detail_month = self._normalize_contract_month(getattr(detail, "contractMonth", ""))
+            if len(detail_month) >= 6 and detail_month[:6].isdigit() and detail_month[:6] >= today_yyyymm:
+                months.append(detail_month[:6])
+            contract = getattr(detail, "contract", None)
+            month = self._normalize_contract_month(getattr(contract, "lastTradeDateOrContractMonth", "") if contract else "")
+            if len(month) >= 6 and month[:6].isdigit() and month[:6] >= today_yyyymm:
+                months.append(month[:6])
+            local_month = self._month_from_local_symbol(getattr(contract, "localSymbol", "") if contract else "")
+            if len(local_month) >= 6 and local_month[:6].isdigit() and local_month[:6] >= today_yyyymm:
+                months.append(local_month[:6])
+        return sorted(set(months))[0] if months else ""
+
+    def _request_contract_months(self, build_contract):
+        req_ids = []
+        for micro_sym in sorted(self.future_symbols):
+            req_id = self._get_next_req_id()
+            self.contract_detail_req_symbols[req_id] = micro_sym
+            self.contract_detail_events[req_id] = threading.Event()
+            self.contract_detail_data[req_id] = []
+            self.reqContractDetails(req_id, build_contract(micro_sym))
+            req_ids.append(req_id)
+            time.sleep(0.05)
+
+        deadline = time.time() + 8
+        result = {}
+        for req_id in req_ids:
+            remaining = max(0.1, deadline - time.time())
+            self.contract_detail_events[req_id].wait(timeout=remaining)
+
+        for req_id in req_ids:
+            micro_sym = self.contract_detail_req_symbols.pop(req_id, "")
+            result[micro_sym] = self._pick_front_contract_month(self.contract_detail_data.pop(req_id, []))
+            self.contract_detail_events.pop(req_id, None)
+        return result
+
+    def refresh_main_contract_months(self, force=False):
+        now = time.time()
+        if not self.connected or not self.serverVersion():
+            return
+        if not force and now - self.last_contract_month_refresh < 1800 and all(self.future_contract_months.get(s) for s in self.future_symbols):
+            return
+
+        cont_months = self._request_contract_months(self._build_standard_cont_future_contract)
+        missing = {sym for sym, month in cont_months.items() if not month}
+        chain_months = self._request_contract_months(self._build_standard_future_chain_contract) if missing else {}
+
+        for micro_sym in sorted(self.future_symbols):
+            month = cont_months.get(micro_sym) or chain_months.get(micro_sym, "")
+            if month:
+                self._set_future_contract_month(micro_sym, month)
+                print(f"[IBReader] {micro_sym} 使用主连所在月份: {month}")
+            else:
+                print(f"[IBReader] ⚠️ 未能从TWS合约链获取 {micro_sym} 主连月份，暂不订阅空月份合约。")
+        self.last_contract_month_refresh = now
 
     def connect_to_ib(self):
         target_port = self.target_ports[self.current_port_index]
@@ -162,9 +302,13 @@ class IBReader(EWrapper, EClient):
         print("[IBReader] 昨收数据为空，尝试获取一次...")
         current_prev_closes = {}
         req_ids = []
+        req_symbols = []
         for sym in self.symbols:
+            if sym in self.future_symbols and not self.future_contract_months.get(sym):
+                continue
             req_id_prev = self._get_next_req_id()
             req_ids.append(req_id_prev)
+            req_symbols.append(sym)
             c_prev = self._build_contract(sym)
             self.req_events[req_id_prev] = threading.Event()
             self.reqHistoricalData(req_id_prev, c_prev, "", "1 D", "1 day", "TRADES", 1, 1, False, [])
@@ -176,7 +320,7 @@ class IBReader(EWrapper, EClient):
         while not all(self.req_events.get(req_id, threading.Event()).is_set() for req_id in req_ids) and (time.time() - start_time < 15):
             time.sleep(0.1)
 
-        for req_id, sym in zip(req_ids, self.symbols):
+        for req_id, sym in zip(req_ids, req_symbols):
              prev_close_bar = self.req_data.get(req_id)
              if prev_close_bar: current_prev_closes[sym] = prev_close_bar
              
@@ -195,6 +339,7 @@ class IBReader(EWrapper, EClient):
             self.polling_thread = threading.Thread(target=self._polling_loop, daemon=True)
             self.polling_thread.start()
             print("[IBReader] 启动 IB 后台轮询线程")
+            print(f"[IBReader] LOF配置文件: {self.config_path}")
 
     def stop_polling(self):
         self.running = False
@@ -205,7 +350,7 @@ class IBReader(EWrapper, EClient):
         while self.running:
             # 兼容原有的 YAML 动态读取，遇到异常直接跳过(依赖外部传入 symbols)
             try:
-                with open('lof_config.yaml', 'r', encoding='utf-8') as f:
+                with open(self.config_path, 'r', encoding='utf-8') as f:
                     cfg = yaml.safe_load(f)
                     syms = set(["GLD", "USO", "XOP", "SLV", "SPY", "QQQ"])
                     syms.update(self.future_symbols)
@@ -213,24 +358,39 @@ class IBReader(EWrapper, EClient):
                         for h in fund.get('valuation_portfolio', []):
                             sym = h.get('symbol', '').split('-')[0].replace('^', '')
                             if sym:
-                                syms.add('MGC' if sym.upper() == 'GC' else sym.upper())
+                                sym = self._to_micro_future(sym)
+                                if sym:
+                                    syms.add(sym)
                         for h in fund.get('future_hedging', []):
                             sym = h.get('symbol', '').split('-')[0].replace('^', '')
                             if sym:
-                                sym = 'MGC' if sym.upper() == 'GC' else sym.upper()
-                                syms.add(sym)
-                                month = self._normalize_contract_month(h.get('delivery_month', ''))
-                                if month and sym in self.future_symbols and sym not in self.future_contract_months:
-                                    self.future_contract_months[sym] = month
+                                sym = self._to_micro_future(sym)
+                                if sym:
+                                    syms.add(sym)
                         trade_etf = fund.get('trade_etf', '')
                         if trade_etf:
                             for s in str(trade_etf).replace('?', ',').split(','):
-                                if s.strip(): syms.add(s.strip().upper())
+                                sym = s.strip().upper()
+                                if sym and sym not in self.non_ib_symbols:
+                                    syms.add(sym)
                         trade_future = str(fund.get('trade_future', '')).strip().upper()
                         if trade_future:
-                            trade_future = 'MGC' if trade_future == 'GC' else trade_future
-                            syms.add(trade_future)
-                    self.symbols = list(syms)
+                            trade_future = self._to_micro_future(trade_future)
+                            if trade_future:
+                                syms.add(trade_future)
+                    self.symbols = [s for s in syms if s and s not in self.non_ib_symbols]
+                    for stale_sym in list(self.symbol_req_ids):
+                        if stale_sym in self.non_ib_symbols:
+                            req_id = self.symbol_req_ids.pop(stale_sym, None)
+                            if req_id is not None:
+                                self.mkt_req_ids.pop(req_id, None)
+                                try:
+                                    self.cancelMktData(req_id)
+                                except Exception:
+                                    pass
+                            self.prices.pop(stale_sym, None)
+                            self.sources.pop(stale_sym, None)
+                            self.last_tick_time.pop(stale_sym, None)
             except: pass
             
             if not self.connected:
@@ -245,6 +405,7 @@ class IBReader(EWrapper, EClient):
                     self.retry_delay = min(self.retry_delay * 2, self.max_retry_delay)
                 continue
             
+            self.refresh_main_contract_months()
             self.fetch_prev_closes_once()
 
             is_night = self.is_us_night_session()
@@ -255,6 +416,8 @@ class IBReader(EWrapper, EClient):
                 poll_sleep = self.polling_interval * 2
 
             for sym in self.symbols:
+                if sym in self.future_symbols and not self.future_contract_months.get(sym):
+                    continue
                 # 1. 建立并维持内存长连接订阅 (零违规风险)
                 if sym not in self.symbol_req_ids:
                     req_id = self._get_next_req_id()
@@ -288,6 +451,8 @@ class IBReader(EWrapper, EClient):
 
             if fallback_needed:
                 for sym in fallback_needed:
+                    if sym in self.future_symbols and not self.future_contract_months.get(sym):
+                        continue
                     req_id_snap = self._get_next_req_id()
                     c_snap = self._build_contract(sym)
                     self.req_events[req_id_snap] = threading.Event()
@@ -298,7 +463,7 @@ class IBReader(EWrapper, EClient):
                     price = self.req_data.get(req_id_snap)
                     if price:
                         if sym not in self.prices or not isinstance(self.prices[sym], dict):
-                            self.prices[sym] = {'bid': 0.0, 'ask': 0.0, 'bid_size': 0, 'ask_size': 0}
+                            self.prices[sym] = {'bid': 0.0, 'ask': 0.0, 'last': 0.0, 'price': 0.0, 'bid_size': 0, 'ask_size': 0}
                         self.prices[sym]['bid'] = price
                         self.prices[sym]['ask'] = 0.0 # 兜底快照只保留 bid，避免误把卖一伪造成买一
                         self.sources[sym] = "安全快照"
@@ -343,12 +508,26 @@ class IBReader(EWrapper, EClient):
         if reqId in self.req_events:
             print(f"[IBReader] 💡 提示: 请求 {reqId} 发生错误，已解除其等待锁。")
             self.req_events[reqId].set()
+        if reqId in self.contract_detail_events:
+            self.contract_detail_events[reqId].set()
 
         if errorCode in [502, 504, 1100, 1101, 1102]:
             self.connected = False
             self.disconnect_from_ib()
             self.mkt_req_ids.clear()
             self.symbol_req_ids.clear()
+
+    def contractDetails(self, reqId, contractDetails):
+        if reqId in self.contract_detail_data:
+            self.contract_detail_data[reqId].append(contractDetails)
+        else:
+            super().contractDetails(reqId, contractDetails)
+
+    def contractDetailsEnd(self, reqId):
+        if reqId in self.contract_detail_events:
+            self.contract_detail_events[reqId].set()
+        else:
+            super().contractDetailsEnd(reqId)
 
     def tickPrice(self, reqId, tickType, price, attrib):
         # 🛡️ 核心修复：兼容新版 IBAPI，将 Decimal 强转为 float，防止后续 JSON 序列化崩溃
@@ -360,7 +539,7 @@ class IBReader(EWrapper, EClient):
             sym = self.mkt_req_ids.get(reqId)
             if sym:
                 if sym not in self.prices or not isinstance(self.prices[sym], dict):
-                    self.prices[sym] = {'bid': 0.0, 'ask': 0.0, 'bid_size': 0, 'ask_size': 0}
+                    self.prices[sym] = {'bid': 0.0, 'ask': 0.0, 'last': 0.0, 'price': 0.0, 'bid_size': 0, 'ask_size': 0}
                 
                 # 💡 只要长连接有任何跳动，都喂一口看门狗，重置30秒倒计时
                 if tickType in [1, 2, 4, 66, 67, 68]:
@@ -377,9 +556,12 @@ class IBReader(EWrapper, EClient):
                     self.sources[sym] = "长连接"
                 elif tickType in [2, 67]: # Ask
                     self.prices[sym]['ask'] = price
-                elif tickType in [4, 68] and self.prices[sym]['bid'] == 0.0: # 如果买卖一价为空，用最新价兜底
-                    self.prices[sym]['bid'] = price
-                    self.prices[sym]['ask'] = 0.0
+                elif tickType in [4, 68]: # Last
+                    self.prices[sym]['last'] = price
+                    self.prices[sym]['price'] = price
+                    if self.prices[sym]['bid'] == 0.0:
+                        self.prices[sym]['bid'] = price
+                        self.prices[sym]['ask'] = 0.0
                 
                 self.last_update_time = datetime.now()
                 
@@ -409,7 +591,7 @@ class IBReader(EWrapper, EClient):
         sym = self.mkt_req_ids.get(reqId)
         if sym:
             if sym not in self.prices or not isinstance(self.prices[sym], dict):
-                self.prices[sym] = {'bid': 0.0, 'ask': 0.0, 'bid_size': 0, 'ask_size': 0}
+                self.prices[sym] = {'bid': 0.0, 'ask': 0.0, 'last': 0.0, 'price': 0.0, 'bid_size': 0, 'ask_size': 0}
                 
             # 💡 只要长连接有任何跳动，都喂一口看门狗，防止被断线判定
             if tickType in [0, 3, 5, 69, 70, 71]:

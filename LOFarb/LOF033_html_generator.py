@@ -788,16 +788,18 @@ class HtmlGenerator:
                             agPriceElement.textContent = data.prices.AG0.toFixed(2);
                         }
                     }
-                    if (data.prices.NQ) {
+                    var nqSnapshotPrice = data.prices.MNQ || data.prices.NQ;
+                    if (nqSnapshotPrice) {
                         var nqPriceElement = document.querySelector('#nq-price');
                         if (nqPriceElement) {
-                            nqPriceElement.textContent = data.prices.NQ.toFixed(2);
+                            nqPriceElement.textContent = nqSnapshotPrice.toFixed(2);
                         }
                     }
-                    if (data.prices.ES) {
+                    var esSnapshotPrice = data.prices.MES || data.prices.ES;
+                    if (esSnapshotPrice) {
                         var esPriceElement = document.querySelector('#es-price');
                         if (esPriceElement) {
-                            esPriceElement.textContent = data.prices.ES.toFixed(2);
+                            esPriceElement.textContent = esSnapshotPrice.toFixed(2);
                         }
                     }
                 }

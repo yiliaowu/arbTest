@@ -15,7 +15,7 @@ funds:
   holdings_portfolio: []
   future_hedging:
   - symbol: MCL
-    delivery_month: '2604'
+    delivery_month: '2608'
     weight: 100.0
     beta: 0.85
     currency: USD
@@ -78,7 +78,7 @@ funds:
     name: WisdomTree Bloomberg Brent Crude Oil
   future_hedging:
   - symbol: MCL
-    delivery_month: '2604'
+    delivery_month: '2608'
     weight: 100.0
     beta: 0.85
     currency: USD
@@ -136,7 +136,7 @@ funds:
     name: samsung SP GSCI crude OIL  future
   future_hedging:
   - symbol: MCL
-    delivery_month: '2604'
+    delivery_month: '2608'
     weight: 100.0
     beta: 0.85
     currency: USD
@@ -265,7 +265,7 @@ funds:
     name: iShares瑞士
   future_hedging:
   - symbol: MGC
-    delivery_month: '2604'
+    delivery_month: '2608'
     weight: 100.0
     beta: 1.0
     currency: USD
@@ -336,7 +336,7 @@ funds:
     name: 'UBS ETF '
   future_hedging:
   - symbol: MGC
-    delivery_month: '2604'
+    delivery_month: '2608'
     weight: 100.0
     currency: USD
     exchange: SMART
@@ -401,7 +401,7 @@ funds:
     name: abrdn Physical silver
   future_hedging:
   - symbol: MGC
-    delivery_month: '2604'
+    delivery_month: '2608'
     weight: 100.0
     beta: 1.0
     currency: USD
@@ -540,7 +540,7 @@ funds:
   holdings_portfolio: []
   future_hedging:
   - symbol: MES
-    delivery_month: '2604'
+    delivery_month: '2608'
     weight: 100.0
     currency: USD
     exchange: SMART
@@ -565,7 +565,7 @@ funds:
   holdings_portfolio: []
   future_hedging:
   - symbol: MNQ
-    delivery_month: '2604'
+    delivery_month: '2608'
     weight: 100.0
     currency: USD
     exchange: SMART
@@ -583,7 +583,7 @@ funds:
   holdings_portfolio: []
   future_hedging:
   - symbol: 沪银Ag
-    delivery_month: '2604'
+    delivery_month: '2608'
     weight: 100.0
     currency: USD
     exchange: SMART
