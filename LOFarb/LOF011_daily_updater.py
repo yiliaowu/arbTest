@@ -42,12 +42,9 @@ FUTURE_CALIBRATION_URLS = [
     "https://www.palmmicro.com/woody/res/sz160723cn.php",
     "https://www.palmmicro.com/woody/res/sz161125cn.php",
     "https://www.palmmicro.com/woody/res/sz161130cn.php",
+    "https://www.palmmicro.com/woody/res/mystockcn.php?symbol=^GSPC",
+    "https://www.palmmicro.com/woody/res/mystockcn.php?symbol=^NDX",
 ]
-
-TRACKING_SYMBOL_ALIASES = {
-    "^GSPC": "ES",
-    "^NDX": "NQ",
-}
 
 class DailyUpdater:
     def __init__(self):
@@ -113,6 +110,9 @@ class DailyUpdater:
     def _parse_future_calibration_rows(self, url, html):
         source_match = re.search(r"/(?:sz|sh)(\d+)cn\.php", url, re.IGNORECASE)
         source_fund_code = source_match.group(1) if source_match else ""
+        if not source_fund_code:
+            symbol_match = re.search(r"[?&]symbol=([^&]+)", url, re.IGNORECASE)
+            source_fund_code = symbol_match.group(1) if symbol_match else ""
         rows = []
 
         tables = pd.read_html(StringIO(html))
@@ -127,7 +127,6 @@ class DailyUpdater:
             for _, row in table.iterrows():
                 symbol = "" if pd.isna(row.get("代码")) else str(row.get("代码")).strip()
                 tracking_symbol = "" if pd.isna(row.get("跟踪代码")) else str(row.get("跟踪代码")).strip()
-                tracking_symbol = TRACKING_SYMBOL_ALIASES.get(tracking_symbol, tracking_symbol)
                 if not symbol or not tracking_symbol or symbol.lower() == "nan" or tracking_symbol.lower() == "nan":
                     continue
 
@@ -147,11 +146,28 @@ class DailyUpdater:
             break
         return rows
 
+    def _has_all_future_calibration_sources(self):
+        conn = self.db._get_conn()
+        try:
+            placeholders = ",".join(["%s"] * len(FUTURE_CALIBRATION_URLS))
+            query = f"SELECT DISTINCT source_url FROM `futureCalibration` WHERE source_url IN ({placeholders})"
+            df = pd.read_sql(query, conn, params=tuple(FUTURE_CALIBRATION_URLS))
+            existing_urls = set(df["source_url"].dropna().astype(str))
+            return set(FUTURE_CALIBRATION_URLS).issubset(existing_urls)
+        except Exception as e:
+            logger.warning(f"[WARN] 检查 futureCalibration 来源 URL 失败，将继续抓取: {e}")
+            return False
+        finally:
+            conn.close()
+
     def step2_1_fetch_future_calibration(self):
         """步骤2.1：从 Palmmicro 基金指数对照表抓取期货校准数据并写入 MySQL。"""
         logger.info("=== 步骤2.1：抓取 Palmmicro futureCalibration 数据 ===")
         today_str = datetime.now().strftime('%Y-%m-%d')
-        if self.db.is_access_synced_today(today_str, source='palmmicro_future_calibration'):
+        if (
+            self.db.is_access_synced_today(today_str, source='palmmicro_future_calibration')
+            and self._has_all_future_calibration_sources()
+        ):
             logger.info("[OK] 今日已抓取过 Palmmicro futureCalibration，跳过。")
             return
 

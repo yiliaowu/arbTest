@@ -62,14 +62,19 @@ TDX_AVAILABLE = False
 tq = None
 _trade_manager_lock = threading.Lock()
 
-def init_trade_manager():
+def init_trade_manager(preload_brokers=None):
     global trade_manager, TDX_AVAILABLE, tq
     with _trade_manager_lock:
-        if trade_manager is not None: return
+        if trade_manager is not None:
+            if preload_brokers:
+                trade_manager.ensure_brokers(preload_brokers)
+                TDX_AVAILABLE = trade_manager.tdx_available
+                tq = trade_manager.tq if TDX_AVAILABLE else None
+            return
         try:
             from readers.trade_manager import TradeManager
             print("⚙️ [系统] 正在懒加载 TradeManager 交易引擎...")
-            trade_manager = TradeManager()
+            trade_manager = TradeManager(preload_brokers=preload_brokers)
             TDX_AVAILABLE = trade_manager.tdx_available
             tq = trade_manager.tq if TDX_AVAILABLE else None
             print("✅ [系统] TradeManager 交易引擎加载就绪。")
@@ -80,7 +85,7 @@ def init_trade_manager():
             tq = None
 
 app = Flask(__name__)
-socketio = SocketIO(app, cors_allowed_origins="*")
+socketio = SocketIO(app, cors_allowed_origins="*", async_mode="threading")
 
 # 基础目录与状态文件
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -89,6 +94,16 @@ ADMIN_STATUS_PATH = os.path.join(LOGS_DIR, "admin_status.json")
 LOF00_PORT = int(os.environ.get("LOF00_PORT", "5001"))
 LOF00_URL = os.environ.get("LOF00_URL", f"http://localhost:{LOF00_PORT}/")
 os.makedirs(LOGS_DIR, exist_ok=True)
+
+# Futures quotes are ancillary to order submission. Keep the network fallback
+# refresh deliberately modest so Flask/QMT/IB order paths get priority.
+FUTURES_FALLBACK_POLL_SECONDS = float(os.environ.get("FUTURES_FALLBACK_POLL_SECONDS", "60"))
+
+class _SuppressFuturesAccessLog(logging.Filter):
+    def filter(self, record):
+        return 'GET /api/futures ' not in record.getMessage()
+
+logging.getLogger('werkzeug').addFilter(_SuppressFuturesAccessLog())
 
 def _is_port_listening(port):
     import socket
@@ -552,6 +567,7 @@ class LOFPriceReader:
         self.use_qmt = False
         self.use_guojin = False
         self.start_time = time.time()
+        self._last_qmt_emit_ts = {}
         
         # QMT Socket客户端
         self.qmt_client = None
@@ -695,7 +711,7 @@ class LOFPriceReader:
             
             if not self.use_qmt:
                 # 如果没连上QMT，需要使用通达信，则此时触发懒加载
-                init_trade_manager()
+                init_trade_manager(preload_brokers=['tdx'])
                 if TDX_AVAILABLE and tq:
                     try:
                         tq.initialize(__file__)
@@ -909,7 +925,7 @@ class FuturePriceService:
         while self.running:
             # IB数据是实时推送的；这里轮询新浪/SSE作为全期货兜底数据源
             self.update_fallback_prices()
-            time.sleep(20)
+            time.sleep(max(5.0, FUTURES_FALLBACK_POLL_SECONDS))
 
     def _ib_price(self, symbol):
         ib_symbol = self._map_symbol(symbol)
@@ -919,6 +935,15 @@ class FuturePriceService:
                 if ib_data.get(key, 0) > 0:
                     return ib_data[key]
         return 0
+
+    def get_bid_price(self, symbol):
+        ib_symbol = self._map_symbol(symbol)
+        ib_data = self.ib_reader.prices.get(ib_symbol, {})
+        if ib_data and isinstance(ib_data, dict):
+            for key in ('bid', 'price', 'last', 'close'):
+                if ib_data.get(key, 0) > 0:
+                    return ib_data[key]
+        return self.get_price(symbol)
 
     def _has_tws_price(self, symbol):
         return self._ib_price(symbol) > 0
@@ -1073,11 +1098,11 @@ def get_futures_data():
         'CL': {'price': future_service.get_price('CL'), 'change_percent': future_service.get_change_percent('CL'), 'source': future_service.get_source('CL')},
         'AG0': {'price': future_service.get_price('AG0'), 'change_percent': future_service.get_change_percent('AG0'), 'settlement': future_service.get_settlement_price('AG0'), 'vwap': future_service.get_vwap('AG0'), 'source': future_service.get_source('AG0')},
         # 标准合约代码（前端期望）
-        'NQ': {'price': mnq_price, 'change_percent': mnq_change, 'source': mnq_source},
-        'ES': {'price': mes_price, 'change_percent': mes_change, 'source': mes_source},
+        'NQ': {'price': mnq_price, 'bid': future_service.get_bid_price('NQ'), 'change_percent': mnq_change, 'source': mnq_source},
+        'ES': {'price': mes_price, 'bid': future_service.get_bid_price('ES'), 'change_percent': mes_change, 'source': mes_source},
         # 微型合约代码（同时返回以兼容）
-        'MNQ': {'price': mnq_price, 'change_percent': mnq_change, 'source': mnq_source},
-        'MES': {'price': mes_price, 'change_percent': mes_change, 'source': mes_source},
+        'MNQ': {'price': mnq_price, 'bid': future_service.get_bid_price('MNQ'), 'change_percent': mnq_change, 'source': mnq_source},
+        'MES': {'price': mes_price, 'bid': future_service.get_bid_price('MES'), 'change_percent': mes_change, 'source': mes_source},
         'MGC': {'price': future_service.get_price('MGC'), 'change_percent': future_service.get_change_percent('MGC'), 'source': future_service.get_source('MGC')},
         'MCL': {'price': future_service.get_price('MCL'), 'change_percent': future_service.get_change_percent('MCL'), 'source': future_service.get_source('MCL')},
         'timestamp': int(time.time()),
@@ -1152,13 +1177,14 @@ def admin_run(task):
 @app.route('/api/trade', methods=['POST'])
 def api_trade():
     """接收前端的一键下单请求，并通过Socket转发给本地QMT或直接调用通达信"""
-    init_trade_manager()
     data = request.get_json()
     action = data.get('action') # 'BUY' or 'SELL'
     symbol = data.get('symbol') # e.g. '162411.SZ'
     volume = data.get('volume', 100)
     price = data.get('price')
     broker = data.get('broker', 'yinhe_qmt')
+    preload_brokers = [broker] if broker in ('tdx', 'guojin_qmt') else None
+    init_trade_manager(preload_brokers=preload_brokers)
     
     if trade_manager:
         success, msg = trade_manager.send_order(broker, action, symbol, volume, price)
@@ -1277,7 +1303,7 @@ if __name__ == "__main__":
     lof_price_reader.start_price_polling()
     future_service.start_polling()
     
-    # 延时 10 秒在后台静默加载交易引擎，确保行情组件优先获得系统连接和资源
+    # 延时 10 秒在后台静默创建轻量交易管理器，确保行情组件优先获得系统连接和资源
     def delayed_trade_init():
         time.sleep(10)
         init_trade_manager()

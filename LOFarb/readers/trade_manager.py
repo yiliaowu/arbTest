@@ -2,10 +2,11 @@ import os
 import sys
 import time
 import socket
+import threading
 
 class TradeManager:
     """A股/LOF统一交易接口管理器"""
-    def __init__(self):
+    def __init__(self, preload_brokers=None):
         self.tdx_available = False
         self.tq = None
         self.tdx_account_id = None
@@ -14,10 +15,25 @@ class TradeManager:
         self.xt_trader = None
         self.xt_account = None
         self.xtconstant = None
+        self._broker_lock = threading.Lock()
+        self._tdx_init_attempted = False
+        self._guojin_init_attempted = False
 
-        # 启动时自动初始化可用通道
-        self._init_tdx()
-        self._init_guojin_qmt()
+        # 外部交易库按通道懒加载，避免银河 Socket 下单被无关通道初始化拖慢。
+        if preload_brokers:
+            self.ensure_brokers(preload_brokers)
+
+    def ensure_brokers(self, brokers):
+        if isinstance(brokers, str):
+            brokers = [brokers]
+        broker_set = set(brokers or [])
+        with self._broker_lock:
+            if 'tdx' in broker_set and not self._tdx_init_attempted:
+                self._tdx_init_attempted = True
+                self._init_tdx()
+            if 'guojin_qmt' in broker_set and not self._guojin_init_attempted:
+                self._guojin_init_attempted = True
+                self._init_guojin_qmt()
 
     def _init_tdx(self):
         try:
@@ -96,6 +112,7 @@ class TradeManager:
                 return False, f"银河QMT下单异常: {str(e)}"
                 
         elif broker == 'guojin_qmt':
+            self.ensure_brokers('guojin_qmt')
             if not self.xtquant_available: return False, "国金 QMT 底层环境未就绪"
             try:
                 order_type = self.xtconstant.STOCK_BUY if action == 'BUY' else self.xtconstant.STOCK_SELL
@@ -105,6 +122,7 @@ class TradeManager:
                 return False, f"国金QMT下单异常: {str(e)}"
                 
         elif broker == 'tdx':
+            self.ensure_brokers('tdx')
             if not self.tdx_available: return False, "通达信接口未就绪"
             if self.tdx_account_id is None or self.tdx_account_id < 0:
                 return False, "通达信交易账户未就绪"

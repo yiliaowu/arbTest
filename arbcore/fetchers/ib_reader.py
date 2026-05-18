@@ -7,6 +7,7 @@ from datetime import datetime
 import yaml
 import random
 import os
+import re
 
 from ibapi.client import EClient
 from ibapi.wrapper import EWrapper
@@ -59,6 +60,17 @@ class IBReader(EWrapper, EClient):
             "ES": {"exchange": "CME", "tradingClass": "ES"},
             "NQ": {"exchange": "CME", "tradingClass": "NQ"},
         }
+        self.stock_primary_exchanges = {
+            "QQQ": "NASDAQ",
+            "SPY": "ARCA",
+            "GLD": "ARCA",
+            "USO": "ARCA",
+            "XOP": "ARCA",
+            "XBI": "ARCA",
+            "SLV": "ARCA",
+            "VGT": "ARCA",
+            "XLY": "ARCA",
+        }
         self.config_path = self._resolve_config_path()
         self.contract_detail_req_symbols = {}
         self.contract_detail_events = {}
@@ -106,6 +118,23 @@ class IBReader(EWrapper, EClient):
             return ""
         return self.micro_future_map.get(sym, sym)
 
+    def _normalize_ib_symbol(self, raw_sym):
+        sym = str(raw_sym or "").strip().upper()
+        if not sym:
+            return ""
+        sym = sym.split("-")[0].replace("^", "").strip()
+        if sym in self.non_ib_symbols:
+            return ""
+        sym = self._to_micro_future(sym)
+        if sym in self.future_symbols:
+            return sym
+        # The YAML also contains London/Tokyo/HK/regional proxies such as
+        # BRNT.L, 1671.T and 03175.HK. They are useful for valuation history
+        # but invalid for IBKR OVERNIGHT market-data subscriptions.
+        if "." in sym or not re.fullmatch(r"[A-Z][A-Z0-9]{0,5}", sym):
+            return ""
+        return sym
+
     def _resolve_config_path(self):
         candidates = [
             os.environ.get("LOF_CONFIG_PATH"),
@@ -118,14 +147,8 @@ class IBReader(EWrapper, EClient):
                 return path
         return "lof_config.yaml"
 
-    def _build_contract(self, sym):
+    def _build_contract(self, sym, force_smart_stock=False):
         contract = Contract()
-        if sym == "GLD":
-            contract.symbol, contract.secType, contract.currency = sym, "STK", "USD"
-            contract.exchange = "SMART"
-            contract.primaryExchange = "ARCA"
-            return contract
-
         if sym in self.future_symbols:
             spec = self.future_contract_specs.get(sym, {})
             contract.symbol = sym
@@ -140,7 +163,13 @@ class IBReader(EWrapper, EClient):
             return contract
 
         contract.symbol, contract.secType, contract.currency = sym, "STK", "USD"
-        contract.exchange = "OVERNIGHT"
+        if self.is_us_night_session() and not force_smart_stock:
+            contract.exchange = "OVERNIGHT"
+        else:
+            contract.exchange = "SMART"
+            primary_exchange = self.stock_primary_exchanges.get(sym)
+            if primary_exchange:
+                contract.primaryExchange = primary_exchange
         return contract
 
     def _build_standard_future_chain_contract(self, micro_sym):
@@ -309,7 +338,7 @@ class IBReader(EWrapper, EClient):
             req_id_prev = self._get_next_req_id()
             req_ids.append(req_id_prev)
             req_symbols.append(sym)
-            c_prev = self._build_contract(sym)
+            c_prev = self._build_contract(sym, force_smart_stock=True)
             self.req_events[req_id_prev] = threading.Event()
             self.reqHistoricalData(req_id_prev, c_prev, "", "1 D", "1 day", "TRADES", 1, 1, False, [])
             # 🛡️ 增加微小延时，防止瞬间并发多个历史请求触发 IB 的 Pacing Violation (防刷限制)
@@ -356,26 +385,22 @@ class IBReader(EWrapper, EClient):
                     syms.update(self.future_symbols)
                     for fund in cfg.get('funds', []):
                         for h in fund.get('valuation_portfolio', []):
-                            sym = h.get('symbol', '').split('-')[0].replace('^', '')
+                            sym = self._normalize_ib_symbol(h.get('symbol', ''))
                             if sym:
-                                sym = self._to_micro_future(sym)
-                                if sym:
-                                    syms.add(sym)
+                                syms.add(sym)
                         for h in fund.get('future_hedging', []):
-                            sym = h.get('symbol', '').split('-')[0].replace('^', '')
+                            sym = self._normalize_ib_symbol(h.get('symbol', ''))
                             if sym:
-                                sym = self._to_micro_future(sym)
-                                if sym:
-                                    syms.add(sym)
+                                syms.add(sym)
                         trade_etf = fund.get('trade_etf', '')
                         if trade_etf:
                             for s in str(trade_etf).replace('?', ',').split(','):
-                                sym = s.strip().upper()
-                                if sym and sym not in self.non_ib_symbols:
+                                sym = self._normalize_ib_symbol(s)
+                                if sym:
                                     syms.add(sym)
                         trade_future = str(fund.get('trade_future', '')).strip().upper()
                         if trade_future:
-                            trade_future = self._to_micro_future(trade_future)
+                            trade_future = self._normalize_ib_symbol(trade_future)
                             if trade_future:
                                 syms.add(trade_future)
                     self.symbols = [s for s in syms if s and s not in self.non_ib_symbols]

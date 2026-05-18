@@ -28,7 +28,7 @@ class StaticValuationCalculator:
             df = pd.read_sql(
                 text(
                     f"""
-                    SELECT calibration, data_date
+                    SELECT symbol, tracking_symbol, calibration, data_date
                     FROM `futureCalibration`
                     WHERE source_fund_code = :fund_code
                       AND calibration IS NOT NULL
@@ -45,9 +45,46 @@ class StaticValuationCalculator:
                 return self._get_latest_future_calibration(fund_code)
             if df.empty or pd.isna(df.iloc[0]["calibration"]):
                 return None
+            first_leg = df.iloc[0]
+            tracking_symbol = str(first_leg["tracking_symbol"]).strip()
+            if tracking_symbol:
+                second_df = pd.read_sql(
+                    text(
+                        """
+                        SELECT symbol, tracking_symbol, calibration, data_date
+                        FROM `futureCalibration`
+                        WHERE symbol = :tracking_symbol
+                          AND calibration IS NOT NULL
+                          AND data_date IS NOT NULL
+                        ORDER BY data_date DESC, updated_at DESC
+                        LIMIT 1
+                        """
+                    ),
+                    engine,
+                    params={"tracking_symbol": tracking_symbol},
+                )
+                if not second_df.empty and pd.notna(second_df.iloc[0]["calibration"]):
+                    second_leg = second_df.iloc[0]
+                    if str(second_leg["data_date"])[:10] != str(first_leg["data_date"])[:10]:
+                        logger.warning(
+                            "futureCalibration two-leg data_date mismatch: "
+                            f"fund_code={fund_code}, first={str(first_leg['data_date'])[:10]}, "
+                            f"second={str(second_leg['data_date'])[:10]}"
+                        )
+                    return {
+                        "calibration": float(first_leg["calibration"]) * float(second_leg["calibration"]),
+                        "data_date": str(first_leg["data_date"])[:10],
+                    }
+
+                logger.warning(
+                    "futureCalibration missing second-leg calibration: "
+                    f"fund_code={fund_code}, symbol={preferred_symbol}, tracking_symbol={tracking_symbol}"
+                )
+                return None
+
             return {
-                "calibration": float(df.iloc[0]["calibration"]),
-                "data_date": str(df.iloc[0]["data_date"])[:10],
+                "calibration": float(first_leg["calibration"]),
+                "data_date": str(first_leg["data_date"])[:10],
             }
         except Exception as e:
             logger.warning(f"读取 futureCalibration 失败: fund_code={fund_code}, symbol={preferred_symbol}, error={e}")
@@ -163,10 +200,7 @@ class StaticValuationCalculator:
                 df.rename(columns={f"{future_sym}_calib": '原油期货校准'}, inplace=True)
 
         index_future_calib_cols = []
-        index_future_calib_col = {
-            "161125": "标普期货校准",
-            "161130": "纳指期货校准",
-        }.get(fund_code)
+        index_future_calib_col = "fut_calib" if fund_code in {"161125", "161130"} else None
         if index_future_calib_col:
             preferred_symbol = str(fund.get("trade_etf", "")).strip().upper() or None
             latest_calibration_info = self._get_latest_future_calibration(fund_code, preferred_symbol)
