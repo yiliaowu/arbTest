@@ -1154,6 +1154,61 @@ def reconnect_lof():
     lof_price_reader.reconnect()
     return jsonify({'status': 'success', 'source': lof_price_reader.get_source_name()})
 
+@app.route('/api/status')
+def get_status():
+    """返回前端状态栏需要的各数据源健康状态。"""
+    now_ts = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+
+    def item(status, message, ts=None):
+        return {
+            'status': status,
+            'message': message,
+            'ts': ts or now_ts,
+        }
+
+    ib_ts = ib_reader_instance.last_update_time.strftime('%Y-%m-%d %H:%M:%S') if ib_reader_instance.last_update_time else ''
+    if ib_reader_instance.connected:
+        ib_status = item('ok' if ib_reader_instance.prices else 'degraded',
+                         'IB已连接' if ib_reader_instance.prices else 'IB已连接，等待行情',
+                         ib_ts)
+    else:
+        ib_status = item('error', 'IB未连接')
+
+    future_prices = {
+        sym: future_service.get_price(sym)
+        for sym in ('GC', 'MGC', 'CL', 'MCL', 'NQ', 'MNQ', 'ES', 'MES')
+    }
+    futures_ready = any(price and price > 0 for price in future_prices.values())
+    futures_status = item('ok' if futures_ready else 'degraded',
+                          '期货行情已更新' if futures_ready else '期货行情等待更新')
+
+    sse_ready = getattr(future_service.sse_reader, 'ag0_price', 0) > 0 or getattr(sse_reader, 'ag0_price', 0) > 0
+    sse_status = item('ok' if sse_ready else 'degraded',
+                      'AG0行情已更新' if sse_ready else 'AG0行情等待更新')
+
+    lof_ready = bool(getattr(lof_price_reader, 'lof_prices', {}))
+    lof_status = item('ok' if lof_ready else 'degraded',
+                      f"LOF实时行情源: {lof_price_reader.get_source_name()}" if lof_ready else 'LOF行情等待更新')
+
+    try:
+        conn = db_manager._get_conn()
+        conn.close()
+        db_status = item('ok', '数据库连接正常')
+    except Exception as e:
+        db_status = item('error', f'数据库连接异常: {e}')
+
+    return jsonify({
+        'status': 'ok',
+        'timestamp': now_ts,
+        'sources': {
+            'ib_night': ib_status,
+            'sina_futures': futures_status,
+            'eastmoney_sse': sse_status,
+            'sina_lof': lof_status,
+            'basic_csv': db_status,
+        }
+    })
+
 @app.route('/api/order_book/<code>')
 def get_order_book(code):
     """获取指定A股的五档深度盘口"""
@@ -1177,6 +1232,7 @@ def admin_run(task):
 @app.route('/api/trade', methods=['POST'])
 def api_trade():
     """接收前端的一键下单请求，并通过Socket转发给本地QMT或直接调用通达信"""
+    request_start = time.perf_counter()
     data = request.get_json()
     action = data.get('action') # 'BUY' or 'SELL'
     symbol = data.get('symbol') # e.g. '162411.SZ'
@@ -1184,10 +1240,35 @@ def api_trade():
     price = data.get('price')
     broker = data.get('broker', 'yinhe_qmt')
     preload_brokers = [broker] if broker in ('tdx', 'guojin_qmt') else None
-    init_trade_manager(preload_brokers=preload_brokers)
+    init_start = time.perf_counter()
+    if broker != 'yinhe_qmt':
+        init_trade_manager(preload_brokers=preload_brokers)
+    init_ms = (time.perf_counter() - init_start) * 1000
+
+    if broker == 'yinhe_qmt' and lof_price_reader.use_qmt and lof_price_reader.qmt_client:
+        send_start = time.perf_counter()
+        success, msg = lof_price_reader.qmt_client.send_order(action, symbol, volume, price)
+        send_ms = (time.perf_counter() - send_start) * 1000
+        total_ms = (time.perf_counter() - request_start) * 1000
+        if success:
+            msg = f"{msg} | 后端耗时: 总{total_ms:.0f}ms/初始化{init_ms:.0f}ms/长连接下单{send_ms:.0f}ms"
+            return jsonify({"status": "success", "message": msg})
+        # 长连接偶发无响应时回退到原短连接路径，保证可用性。
+        print(f"WARNING: 银河QMT长连接下单失败，回退短连接: {msg}")
+        init_start = time.perf_counter()
+        init_trade_manager(preload_brokers=None)
+        init_ms += (time.perf_counter() - init_start) * 1000
+    elif broker == 'yinhe_qmt' and trade_manager is None:
+        init_start = time.perf_counter()
+        init_trade_manager(preload_brokers=None)
+        init_ms += (time.perf_counter() - init_start) * 1000
     
     if trade_manager:
+        send_start = time.perf_counter()
         success, msg = trade_manager.send_order(broker, action, symbol, volume, price)
+        send_ms = (time.perf_counter() - send_start) * 1000
+        total_ms = (time.perf_counter() - request_start) * 1000
+        msg = f"{msg} | 后端耗时: 总{total_ms:.0f}ms/初始化{init_ms:.0f}ms/下单{send_ms:.0f}ms"
         return jsonify({"status": "success" if success else "error", "message": msg})
     else:
         return jsonify({"status": "error", "message": "服务端 TradeManager 未启动，无法交易"}), 500
@@ -1195,6 +1276,7 @@ def api_trade():
 @app.route('/api/ib_trade', methods=['POST'])
 def api_ib_trade():
     """接收前端发来的IB外盘下单指令"""
+    request_start = time.perf_counter()
     data = request.get_json()
     action = data.get('action')
     symbol = data.get('symbol', '').strip().upper()
@@ -1204,7 +1286,11 @@ def api_ib_trade():
     if not symbol or float(volume) <= 0 or float(price) <= 0:
         return jsonify({"status": "error", "message": "参数非法: 代码, 数量或价格无效"}), 400
         
+    send_start = time.perf_counter()
     success, msg = ib_reader_instance.place_us_order(symbol, action, volume, price)
+    send_ms = (time.perf_counter() - send_start) * 1000
+    total_ms = (time.perf_counter() - request_start) * 1000
+    msg = f"{msg} | 后端耗时: 总{total_ms:.0f}ms/IB下单{send_ms:.0f}ms"
     return jsonify({"status": "success" if success else "error", "message": msg})
 
 @app.route('/api/ib_cancel_all', methods=['POST'])

@@ -15,6 +15,10 @@ class QmtSocketClient:
         self.running = False
         self.recv_thread = None
         self.heartbeat_thread = None
+        self.send_lock = threading.Lock()
+        self.command_lock = threading.Lock()
+        self.response_event = None
+        self.response_text = ""
         
         # 存储实时价格
         self.prices = {}
@@ -99,9 +103,39 @@ class QmtSocketClient:
             try:
                 if not msg.endswith('\n'):
                     msg += '\n'
-                self.sock.sendall(msg.encode('utf-8'))
+                with self.send_lock:
+                    self.sock.sendall(msg.encode('utf-8'))
             except Exception as e:
                 print(f"❌ [银河QMT] 发送异常: {e}")
+
+    def send_command_wait(self, cmd: str, timeout: float = 2.0) -> str:
+        """通过既有长连接发送命令并等待非行情响应。"""
+        if not self.sock or not self.running:
+            return ""
+        with self.command_lock:
+            self.response_event = threading.Event()
+            self.response_text = ""
+            try:
+                if not cmd.endswith('\n'):
+                    cmd += '\n'
+                with self.send_lock:
+                    self.sock.sendall(cmd.encode('utf-8'))
+                if not self.response_event.wait(timeout=timeout):
+                    return ""
+                return self.response_text
+            except Exception as e:
+                return f"命令异常: {e}"
+            finally:
+                self.response_event = None
+                self.response_text = ""
+
+    def send_order(self, action: str, symbol: str, volume: int, price: float, timeout: float = 2.0):
+        """复用行情长连接下发银河QMT订单，避免每次短连接进入QMT线程调度。"""
+        cmd = f"{action},{symbol},{volume},{price}"
+        response = self.send_command_wait(cmd, timeout=timeout)
+        if response:
+            return True, f"银河QMT(长连接)返回: {response}"
+        return False, "银河QMT长连接下单无响应"
     
     def subscribe(self, codes):
         """订阅实时行情"""
@@ -169,7 +203,14 @@ class QmtSocketClient:
                                 except Exception as e:
                                     print(f"❌ [银河QMT] 回调执行失败: {e}")
         elif msg not in ["SUBSCRIBE_OK", "PONG", "OK"]:
-            print(f"📬 [银河QMT] {msg}")
+            if self.response_event is not None and (msg.startswith("OK") or msg.startswith("ERROR") or msg.startswith("VERSION") or msg.startswith("arbTest-")):
+                self.response_text = msg
+                self.response_event.set()
+            else:
+                print(f"📬 [银河QMT] {msg}")
+        elif self.response_event is not None and msg == "OK":
+            self.response_text = msg
+            self.response_event.set()
     
     def get_price(self, code: str) -> float:
         """获取指定代码的实时价格"""

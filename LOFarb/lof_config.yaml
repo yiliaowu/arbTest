@@ -10,8 +10,8 @@ funds:
   name: 南方原油
   category: 原油
   holdings:
-    equity_ratio: 80.35
-    cash_ratio: 19.65
+    equity_ratio: 79.43
+    cash_ratio: 20.57
   holdings_portfolio: []
   future_hedging:
   - symbol: MCL
@@ -23,17 +23,17 @@ funds:
     name: 微原油期货
   valuation_portfolio:
   - symbol: USO-EU
-    weight: 53.23
+    weight: 58.64
     anchor: EU
   - symbol: USO
-    weight: 35.53
+    weight: 35.06
     anchor: US
   - symbol: USO-JP
-    weight: 11.24
+    weight: 6.29
     anchor: US
   trade_etf: USO
   trade_future: MCL
-  position: 80.35
+  position: 79.43
 - code: '160723'
   name: 嘉实原油
   category: 原油
@@ -164,11 +164,11 @@ funds:
   trade_etf: GLD,USO
   trade_future: ''
   holdings:
-    equity_ratio: 101.23
-    cash_ratio: -1.23
+    equity_ratio: 90.97
+    cash_ratio: 9.03
   valuation_portfolio:
   - symbol: GLD
-    weight: 35.06
+    weight: 7.61
     anchor: US
     name: ''
     currency: USD
@@ -182,18 +182,18 @@ funds:
   sina_index_url: ''
   holdings_portfolio: []
   future_hedging: []
-  position: 101.23
+  position: 90.97
 - code: '161815'
   name: 银华抗通胀
   category: 黄金
   trade_etf: GLD,USO
   trade_future: ''
   holdings:
-    equity_ratio: 84.64
-    cash_ratio: 15.36
+    equity_ratio: 85.27
+    cash_ratio: 14.73
   valuation_portfolio:
   - symbol: GLD
-    weight: 55.64
+    weight: 73.52
     anchor: US
     name: ''
     currency: USD
@@ -205,7 +205,7 @@ funds:
     currency: USD
     exchange: SMART
   - symbol: USO-EU
-    weight: 29.54
+    weight: 26.48
     anchor: EU
     name: ''
     currency: USD
@@ -225,13 +225,13 @@ funds:
     currency: USD
     exchange: SMART
     name: 原油
-  position: 84.64
+  position: 85.27
 - code: '160719'
   name: 嘉实黄金
   category: 黄金
   holdings:
-    equity_ratio: 96.37
-    cash_ratio: 3.63
+    equity_ratio: 96.24
+    cash_ratio: 3.76
   holdings_portfolio:
   - symbol: GLD
     weight: 19.02
@@ -273,14 +273,14 @@ funds:
     name: ''
   valuation_portfolio:
   - symbol: GLD
-    weight: 53.48
+    weight: 53.6
     anchor: US
   - symbol: GLD-EU
-    weight: 46.52
+    weight: 46.4
     anchor: EU
   trade_etf: GLD
   trade_future: MGC
-  position: 96.37
+  position: 96.24
 - code: '161116'
   name: 易方达黄金
   category: 黄金
@@ -346,8 +346,8 @@ funds:
   name: 汇添富贵金属
   category: 黄金
   holdings:
-    equity_ratio: 100.44
-    cash_ratio: -0.44
+    equity_ratio: 98.28
+    cash_ratio: 1.72
   holdings_portfolio:
   - symbol: UGL
     weight: 33.165
@@ -409,26 +409,26 @@ funds:
     name: ''
   valuation_portfolio:
   - symbol: GLD
-    weight: 100.34
+    weight: 99.43
     anchor: US
     name: ''
     currency: USD
     exchange: SMART
   - symbol: SLV
-    weight: -0.34
+    weight: 0.57
     anchor: US
     name: ''
     currency: USD
     exchange: SMART
   trade_etf: GLD
   trade_future: MGC
-  position: 100.44
+  position: 98.28
 - code: '165513'
   name: 中信保诚
   category: 黄金
   holdings:
-    equity_ratio: 88.47
-    cash_ratio: 11.53
+    equity_ratio: 89.65
+    cash_ratio: 10.35
   holdings_portfolio: []
   future_hedging:
   - symbol: MGC
@@ -440,26 +440,26 @@ funds:
     name: ''
   valuation_portfolio:
   - symbol: GLD
-    weight: 94.37
+    weight: 90.91
     anchor: US
     name: ''
     currency: USD
     exchange: SMART
   - symbol: GLD-EU
-    weight: 4.23
+    weight: 8.02
     anchor: EU
     name: ''
     currency: USD
     exchange: SMART
   - symbol: GLD-JP
-    weight: 1.4
+    weight: 1.07
     anchor: JP
     name: ''
     currency: USD
     exchange: SMART
   trade_etf: GLD
   trade_future: MGC
-  position: 88.47
+  position: 89.65
 - code: '162411'
   name: 华宝油气
   category: 纯ETF
@@ -588,142 +588,6 @@ funds:
     currency: USD
     exchange: SMART
     name: 上海期货交易所主连
-- code: '161128'
-  name: 标普信息科技LOF
-  category: 其他
-  trade_etf: VGT
-  trade_future: ''
-  holdings:
-    equity_ratio: 95.0
-    cash_ratio: 5.0
-  valuation_portfolio:
-  - symbol: NVDA
-    weight: 23.03
-    anchor: US
-    name: ''
-    currency: USD
-    exchange: SMART
-  - symbol: AAPL
-    weight: 20.26
-    anchor: US
-    name: ''
-    currency: USD
-    exchange: SMART
-  - symbol: MSFT
-    weight: 14.95
-    anchor: US
-    name: ''
-    currency: USD
-    exchange: SMART
-  - symbol: AVGO
-    weight: 7.98
-    anchor: US
-    name: ''
-    currency: USD
-    exchange: SMART
-  - symbol: MU
-    weight: 2.07
-    anchor: US
-    name: ''
-    currency: USD
-    exchange: SMART
-  - symbol: PLTR
-    weight: 1.81
-    anchor: US
-    name: ''
-    currency: USD
-    exchange: SMART
-  - symbol: AMD
-    weight: 1.81
-    anchor: US
-    name: ''
-    currency: USD
-    exchange: SMART
-  - symbol: CSCO
-    weight: 1.67
-    anchor: US
-    name: ''
-    currency: USD
-    exchange: SMART
-  - symbol: AMAT
-    weight: 1.46
-    anchor: US
-    name: ''
-    currency: USD
-    exchange: SMART
-  - symbol: LRCX
-    weight: 1.45
-    anchor: US
-    name: ''
-    currency: USD
-    exchange: SMART
-  - symbol: QQQ
-    weight: 23.49
-    anchor: US
-    name: ''
-    currency: USD
-    exchange: SMART
-  sina_index_url: ''
-  rate_type: midpoint
-  holdings_portfolio:
-  - symbol: NVDA
-    weight: 23.03
-    currency: USD
-    exchange: LSE
-    name: ''
-  - symbol: AAPL
-    weight: 20.26
-    currency: USD
-    exchange: LSE
-    name: ''
-  - symbol: MSFT
-    weight: 14.95
-    currency: USD
-    exchange: LSE
-    name: ''
-  - symbol: AVGO
-    weight: 7.98
-    currency: USD
-    exchange: LSE
-    name: ''
-  - symbol: MU
-    weight: 2.07
-    currency: USD
-    exchange: LSE
-    name: ''
-  - symbol: PLTR
-    weight: 1.82
-    currency: USD
-    exchange: LSE
-    name: ''
-  - symbol: AMD
-    weight: 1.81
-    currency: USD
-    exchange: LSE
-    name: ''
-  - symbol: CSCO
-    weight: 1.67
-    currency: USD
-    exchange: LSE
-    name: ''
-  - symbol: AMAT
-    weight: 1.47
-    currency: USD
-    exchange: LSE
-    name: ''
-  - symbol: LRCX
-    weight: 1.45
-    currency: USD
-    exchange: LSE
-    name: ''
-  - symbol: QQQ
-    weight: 23.49
-    currency: USD
-    exchange: LSE
-    name: ''
-  future_hedging: []
-  val_tab_type: sector
-  position: 95.0
 last_update_date: '2026-04-07'
 future_gold_calibration: .nan
 future_oil_calibration: .nan

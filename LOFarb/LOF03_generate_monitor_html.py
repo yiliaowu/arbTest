@@ -1923,6 +1923,7 @@ def generate(futures_data=None, ib_data=None):
             window.fundBaseData = ''' + json.dumps(js_fund_base_data, ensure_ascii=False) + r''';
             window.latestIbPrices = ''' + json.dumps(ib_night_prices, ensure_ascii=False) + r''';
             window.calibData = { "gold": ''' + str(gold_calibration) + r''', "oil": ''' + str(oil_calibration) + r''' };
+            window.tradeApiBase = 'http://127.0.0.1:5000';
 
             // WebSocket连接
             var socket = io();
@@ -2848,7 +2849,7 @@ def generate(futures_data=None, ib_data=None):
                 // 自动补全交易所后缀，5开头补SH，否则补SZ
                 var fullSymbol = code + (code.startsWith('5') ? '.SH' : '.SZ');
                 
-                fetch('http://localhost:5000/api/trade', {
+                fetch(window.tradeApiBase + '/api/trade', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ action: action, symbol: fullSymbol, volume: vol, price: price, broker: broker })
@@ -2863,6 +2864,7 @@ def generate(futures_data=None, ib_data=None):
             
             // IB 外盘独立交易接口
             window.executeIbTrade = function(code, action, sandboxType) {
+                var clickTs = performance.now();
                 var symInput = document.getElementById('ib-trade-sym-' + code + '-' + sandboxType).value.trim().toUpperCase();
                 var volInput = parseInt(document.getElementById('ib-trade-vol-' + code + '-' + sandboxType).value);
                 var priceInput = parseFloat(document.getElementById('ib-trade-price-' + code + '-' + sandboxType).value);
@@ -2877,18 +2879,26 @@ def generate(futures_data=None, ib_data=None):
                 var msgEl = document.getElementById('ib-trade-msg-' + code + '-' + sandboxType);
                 msgEl.textContent = '🚀 指令发送中...';
                 msgEl.style.color = '#f57c00';
+                var fetchStartTs = performance.now();
                 
-                fetch('http://localhost:5000/api/ib_trade', {
+                fetch(window.tradeApiBase + '/api/ib_trade', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ action: action, symbol: symInput, volume: volInput, price: priceInput })
                 })
-                .then(res => res.json())
-                .then(data => {
+                .then(res => {
+                    var headerTs = performance.now();
+                    return res.json().then(data => ({data: data, headerTs: headerTs}));
+                })
+                .then(result => {
+                    var data = result.data;
+                    var jsonTs = performance.now();
+                    var frontendTiming = ' | 前端耗时: fetch响应' + Math.round(result.headerTs - fetchStartTs) + 'ms/json+' + Math.round(jsonTs - result.headerTs) + 'ms/确认后总' + Math.round(jsonTs - fetchStartTs) + 'ms/点击后总' + Math.round(jsonTs - clickTs) + 'ms';
                     msgEl.textContent = (data.status === 'success' ? '✅ ' : '❌ ') + data.message;
+                    msgEl.textContent += frontendTiming;
                     msgEl.style.color = data.status === 'success' ? '#1565c0' : '#d32f2f';
                 })
-                .catch(err => { msgEl.textContent = '❌ 网络请求失败'; msgEl.style.color = '#d32f2f'; });
+                .catch(err => { msgEl.textContent = '❌ 网络请求失败 | 前端耗时: 确认后总' + Math.round(performance.now() - fetchStartTs) + 'ms'; msgEl.style.color = '#d32f2f'; });
             };
             
             // 手动输入夜盘数据的功能

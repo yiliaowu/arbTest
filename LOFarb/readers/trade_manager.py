@@ -98,14 +98,23 @@ class TradeManager:
         """暴露给外部的统一路由函数"""
         if broker == 'yinhe_qmt':
             try:
+                start_ts = time.perf_counter()
                 cmd_str = f"{action},{symbol},{volume},{price}\n"
                 client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
                 client.settimeout(2.0)
+                connect_start = time.perf_counter()
                 client.connect(('127.0.0.1', 8888))
+                connect_ms = (time.perf_counter() - connect_start) * 1000
+                send_start = time.perf_counter()
                 client.sendall(cmd_str.encode('utf-8'))
+                send_ms = (time.perf_counter() - send_start) * 1000
+                recv_start = time.perf_counter()
                 response = client.recv(1024).decode('utf-8')
+                recv_ms = (time.perf_counter() - recv_start) * 1000
                 client.close()
-                return True, f"银河QMT(Socket)返回: {response}"
+                total_ms = (time.perf_counter() - start_ts) * 1000
+                timing = f"耗时: 总{total_ms:.0f}ms/连接{connect_ms:.0f}ms/发送{send_ms:.0f}ms/等待QMT{recv_ms:.0f}ms"
+                return True, f"银河QMT(Socket)返回: {response.strip()} ({timing})"
             except ConnectionRefusedError:
                 return False, "银河QMT未开启或 8888 桥接策略未运行"
             except Exception as e:

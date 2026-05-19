@@ -35,6 +35,7 @@ class IBReader(EWrapper, EClient):
         self.req_id_counter = 1000 
 
         self.next_order_id = None
+        self.order_id_lock = threading.Lock()
         self.req_events = {} 
         self.req_data = {} 
         self.placed_order_ids = set() # 记录本实例下发的所有订单 ID，用于精准撤单
@@ -656,20 +657,43 @@ class IBReader(EWrapper, EClient):
     def historicalDataEnd(self, reqId, start, end):
         if reqId in self.req_events: self.req_events[reqId].set()
 
+    def openOrder(self, orderId, contract, order, orderState):
+        super().openOrder(orderId, contract, order, orderState)
+        ts = datetime.now().strftime('%H:%M:%S.%f')[:-3]
+        status = getattr(orderState, 'status', '')
+        print(f"[IBReader] openOrder {ts}: orderId={orderId}, {getattr(order, 'action', '')} {getattr(contract, 'symbol', '')}, status={status}")
+
+    def orderStatus(self, orderId, status, filled, remaining, avgFillPrice, permId, parentId, lastFillPrice, clientId, whyHeld, mktCapPrice):
+        super().orderStatus(orderId, status, filled, remaining, avgFillPrice, permId, parentId, lastFillPrice, clientId, whyHeld, mktCapPrice)
+        ts = datetime.now().strftime('%H:%M:%S.%f')[:-3]
+        print(f"[IBReader] orderStatus {ts}: orderId={orderId}, status={status}, filled={filled}, remaining={remaining}, avg={avgFillPrice}, whyHeld={whyHeld}")
+
+    def execDetails(self, reqId, contract, execution):
+        super().execDetails(reqId, contract, execution)
+        ts = datetime.now().strftime('%H:%M:%S.%f')[:-3]
+        print(f"[IBReader] execDetails {ts}: orderId={getattr(execution, 'orderId', '')}, {getattr(contract, 'symbol', '')}, shares={getattr(execution, 'shares', '')}, price={getattr(execution, 'price', '')}")
+
     def place_us_order(self, symbol, action, quantity, price):
         """核心恢复：IB 盈透盘前夜盘下单指令发送"""
+        total_start = time.perf_counter()
+        req_id_ms = 0
+        build_ms = 0
+        place_ms = 0
         if not self.isConnected():
             return False, "IB 未连接"
             
         if self.next_order_id is None:
+            req_id_start = time.perf_counter()
             self.reqIds(-1)
             for _ in range(10):
                 if self.next_order_id is not None: break
                 time.sleep(0.1)
+            req_id_ms = (time.perf_counter() - req_id_start) * 1000
                 
         if self.next_order_id is None:
             return False, "无法获取有效订单 ID，请检查 TWS 是否开启了 '只读API' 限制"
-            
+
+        build_start = time.perf_counter()
         contract = Contract()
         contract.symbol = symbol
         contract.secType = "STK"
@@ -702,13 +726,21 @@ class IBReader(EWrapper, EClient):
         order.lmtPrice = float(price)
         order.tif = "DAY"
         order.outsideRth = True # 与测试脚本保持100%一致，允许盘外交易
-        
-        order_id = self.next_order_id
+        build_ms = (time.perf_counter() - build_start) * 1000
+
+        with self.order_id_lock:
+            order_id = self.next_order_id
+            self.next_order_id += 1 # 内部自增以便连续下单
+
+        place_start = time.perf_counter()
         self.placeOrder(order_id, contract, order)
+        place_ms = (time.perf_counter() - place_start) * 1000
         self.placed_order_ids.add(order_id)
-        self.next_order_id += 1 # 内部自增以便连续下单
-        
-        return True, f"指令已发送: {action} {quantity}股 {symbol} @ {price} (路由: {contract.exchange})"
+        total_ms = (time.perf_counter() - total_start) * 1000
+
+        short_sale = getattr(order, 'shortSaleSlot', 0)
+        timing = f"IB耗时: 总{total_ms:.0f}ms/取订单号{req_id_ms:.0f}ms/构建{build_ms:.0f}ms/placeOrder{place_ms:.0f}ms"
+        return True, f"指令已发送: orderId={order_id} {action} {quantity}股 {symbol} @ {price} (路由: {contract.exchange}, shortSaleSlot={short_sale}) | {timing}"
 
     def cancel_all_orders(self):
         """精准撤单：只撤销本程序沙盘发出的订单，绝不误伤手机APP挂的单"""

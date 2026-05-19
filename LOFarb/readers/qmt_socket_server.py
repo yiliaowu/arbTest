@@ -26,6 +26,14 @@ g_active_clients = []
 g_clients_lock = threading.Lock()
 g_subscribed_stocks = set()
 g_order_pending = threading.Event()
+g_last_push_ts = 0
+g_push_interval = 2.0
+g_order_cooldown_until = 0
+SERVER_VERSION = "arbTest-qmt-callback-order-20260519"
+g_auto_push_ticks = False
+g_order_queue = []
+g_order_queue_lock = threading.Lock()
+g_order_seq = 0
 
 def client_handler(conn, addr):
     buffer = ""
@@ -48,13 +56,33 @@ def client_handler(conn, addr):
         conn.close()
 
 def process_command_sync(conn, cmd_str):
-    global g_context, g_account_id, g_subscribed_stocks
+    global g_context, g_account_id, g_subscribed_stocks, g_auto_push_ticks
     parts = cmd_str.split(',')
     action = parts[0].upper()
 
     if action == 'PING':
         try:
             conn.sendall(b'PONG\n')
+        except Exception:
+            pass
+
+    elif action == 'VERSION':
+        try:
+            conn.sendall((SERVER_VERSION + '\n').encode('utf-8'))
+        except Exception:
+            pass
+
+    elif action == 'TICK_PUSH_ON':
+        g_auto_push_ticks = True
+        try:
+            conn.sendall(b'TICK_PUSH_ON_OK\n')
+        except Exception:
+            pass
+
+    elif action == 'TICK_PUSH_OFF':
+        g_auto_push_ticks = False
+        try:
+            conn.sendall(b'TICK_PUSH_OFF_OK\n')
         except Exception:
             pass
 
@@ -76,21 +104,39 @@ def process_command_sync(conn, cmd_str):
             pass
 
     elif action in ['BUY', 'SELL'] and len(parts) >= 4:
+        global g_order_cooldown_until, g_order_seq
+        start_ts = time.time()
         code, volume, price = parts[1], int(parts[2]), float(parts[3])
         opType = 23 if action == 'BUY' else 24
-        if g_context:
-            g_order_pending.set()
-            try:
-                with g_api_lock:
-                    try:
-                        msg = f"Socket_{action}_{code}"
-                        passorder(opType, 1101, g_account_id, code, 11, price, volume, 'SocketTrade', 1, msg, g_context)
-                    except Exception as e:
-                        print(f"Passorder Error: {e}")
-            finally:
-                g_order_pending.clear()
+        # passorder 返回很快，但 QMT 内部真实送单是异步队列；先停行情抢锁，
+        # 给交易线程一个干净窗口，避免订单在 QMT 内部排队几十秒。
+        g_order_cooldown_until = time.time() + 10.0
+        event = threading.Event()
+        order_item = {
+            'opType': opType,
+            'action': action,
+            'code': code,
+            'volume': volume,
+            'price': price,
+            'event': event,
+            'ok': False,
+            'error': '',
+            'elapsed_ms': 0,
+        }
+        with g_order_queue_lock:
+            g_order_seq += 1
+            order_item['seq'] = g_order_seq
+            g_order_queue.append(order_item)
+
+        event.wait(3.0)
         try:
-            conn.sendall(b'OK\n')
+            elapsed_ms = int((time.time() - start_ts) * 1000)
+            if order_item.get('ok'):
+                conn.sendall(f"OK,{order_item.get('elapsed_ms', elapsed_ms)}ms,queued,{elapsed_ms}ms\n".encode('utf-8'))
+            elif order_item.get('error'):
+                conn.sendall(f"ERROR,{order_item.get('error')},queued,{elapsed_ms}ms\n".encode('utf-8'))
+            else:
+                conn.sendall(f"ERROR,QMT_ORDER_CALLBACK_TIMEOUT,queued,{elapsed_ms}ms\n".encode('utf-8'))
         except Exception:
             pass
 
@@ -109,7 +155,8 @@ def process_command_sync(conn, cmd_str):
             conn.sendall(f"DEBUG, 开始为您提取 {new_stocks} 的盘口数据...\n".encode('utf-8'))
         except Exception:
             pass
-        push_ticks()  # 核心：订阅后立即推送一次，破除周末休眠
+        if g_auto_push_ticks:
+            push_ticks()  # 核心：订阅后立即推送一次，破除周末休眠
 
 def socket_server_thread():
     server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -156,11 +203,17 @@ def init(ContextInfo):
     ContextInfo.run_time("check_tasks", "1nSecond", "2020-01-01 09:30:00")
 
 def push_ticks():
-    global g_context, g_subscribed_stocks
+    global g_context, g_subscribed_stocks, g_last_push_ts, g_order_cooldown_until
     if not g_context or not g_subscribed_stocks or len(g_active_clients) == 0:
         return
     if g_order_pending.is_set():
         return
+    now = time.time()
+    if now < g_order_cooldown_until:
+        return
+    if now - g_last_push_ts < g_push_interval:
+        return
+    g_last_push_ts = now
     try:
         # QMT API 调用必须串行保护；拿到 ticks 后立刻释放锁，广播不要占用交易锁。
         with g_api_lock:
@@ -189,11 +242,39 @@ def push_ticks():
         broadcast_message(f"ERROR, push_ticks 发生错误: {e}\n")
         print(f"[推流异常] push_ticks 发生错误: {e}")
 
+def process_pending_orders():
+    global g_order_cooldown_until
+    while True:
+        with g_order_queue_lock:
+            if not g_order_queue:
+                return
+            order_item = g_order_queue.pop(0)
+        start_ts = time.time()
+        g_order_pending.set()
+        g_order_cooldown_until = time.time() + 10.0
+        try:
+            with g_api_lock:
+                msg = f"Socket_{order_item['action']}_{order_item['code']}_{order_item.get('seq', 0)}"
+                passorder(order_item['opType'], 1101, g_account_id, order_item['code'], 11, order_item['price'], order_item['volume'], 'SocketTrade', 1, msg, g_context)
+            order_item['ok'] = True
+        except Exception as e:
+            order_item['error'] = str(e)
+            print(f"Passorder Error: {e}")
+        finally:
+            order_item['elapsed_ms'] = int((time.time() - start_ts) * 1000)
+            g_order_pending.clear()
+            g_order_cooldown_until = time.time() + 10.0
+            order_item['event'].set()
+
 def check_tasks(ContextInfo):
-    push_ticks()
+    process_pending_orders()
+    if g_auto_push_ticks:
+        push_ticks()
 
 def handlebar(ContextInfo):
-    push_ticks()
+    process_pending_orders()
+    if g_auto_push_ticks:
+        push_ticks()
 
 def orderError_callback(ContextInfo, passOrderInfo, msg):
     pass
