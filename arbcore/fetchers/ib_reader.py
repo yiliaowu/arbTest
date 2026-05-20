@@ -222,10 +222,35 @@ class IBReader(EWrapper, EClient):
             return f"{year}{month_codes[code]}"
         return ""
 
+    def _parse_expiry_date(self, value):
+        digits = re.sub(r"\D", "", str(value or ""))
+        if len(digits) >= 8:
+            try:
+                return datetime.strptime(digits[:8], "%Y%m%d").date()
+            except ValueError:
+                return None
+        return None
+
+    def _contract_detail_expired(self, detail):
+        contract = getattr(detail, "contract", None)
+        expiry_candidates = [
+            getattr(detail, "realExpirationDate", ""),
+            getattr(detail, "lastTradeDate", ""),
+            getattr(contract, "lastTradeDateOrContractMonth", "") if contract else "",
+        ]
+        today = datetime.now().date()
+        for raw in expiry_candidates:
+            expiry_date = self._parse_expiry_date(raw)
+            if expiry_date and expiry_date < today:
+                return True
+        return False
+
     def _pick_front_contract_month(self, details):
         today_yyyymm = datetime.now().strftime("%Y%m")
         months = []
         for detail in details or []:
+            if self._contract_detail_expired(detail):
+                continue
             detail_month = self._normalize_contract_month(getattr(detail, "contractMonth", ""))
             if len(detail_month) >= 6 and detail_month[:6].isdigit() and detail_month[:6] >= today_yyyymm:
                 months.append(detail_month[:6])

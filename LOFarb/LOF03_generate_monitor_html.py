@@ -915,14 +915,14 @@ def generate_fund_data(fund, data_processor, html_generator, futures_data, futur
                 future_light_html = '<span class="arb-light arb-light-green" title="无显著折价空间 (>-0.8%)"></span>'
         
         # 构建估值+溢价的组合显示
-        etf_valuation_display = f'<span class="num-font" id="realtime-valuation-{code}">-</span>'
-        etf_valuation_display += f'<br><span class="num-font" id="realtime-premium-{code}" style="font-size:14px;">-</span><span id="realtime-light-{code}"></span>'
+        etf_valuation_display = f'<span class="num-font realtime-valuation-cell" id="realtime-valuation-{code}" data-lof-code="{code}">-</span>'
+        etf_valuation_display += f'<br><span class="num-font realtime-premium-cell" id="realtime-premium-{code}" data-lof-code="{code}" style="font-size:14px;">-</span><span class="realtime-light-cell" id="realtime-light-{code}" data-lof-code="{code}"></span>'
         
-        futures_valuation_display = f'<span class="num-font" id="rt-calib-val-{code}">{future_valuation_str}</span>'
+        futures_valuation_display = f'<span class="num-font rt-calib-val-cell" id="rt-calib-val-{code}" data-lof-code="{code}">{future_valuation_str}</span>'
         if future_premium_str != '-':
-            futures_valuation_display += f'<br><span class="num-font {future_premium_cls}" id="rt-calib-prem-{code}" style="font-size:14px;">{future_premium_str}</span><span id="rt-calib-light-{code}">{future_light_html}</span>'
+            futures_valuation_display += f'<br><span class="num-font rt-calib-prem-cell {future_premium_cls}" id="rt-calib-prem-{code}" data-lof-code="{code}" style="font-size:14px;">{future_premium_str}</span><span class="rt-calib-light-cell" id="rt-calib-light-{code}" data-lof-code="{code}">{future_light_html}</span>'
         else:
-            futures_valuation_display += f'<br><span class="num-font" id="rt-calib-prem-{code}" style="font-size:14px;"></span><span id="rt-calib-light-{code}"></span>'
+            futures_valuation_display += f'<br><span class="num-font rt-calib-prem-cell" id="rt-calib-prem-{code}" data-lof-code="{code}" style="font-size:14px;"></span><span class="rt-calib-light-cell" id="rt-calib-light-{code}" data-lof-code="{code}"></span>'
             
         exact_future_valuation_str = f"{exact_future_valuation:.4f}" if exact_future_valuation > 0 else "-"
         exact_future_premium_str = f"{exact_future_premium:+.2f}%" if exact_future_valuation > 0 else "-"
@@ -934,11 +934,11 @@ def generate_fund_data(fund, data_processor, html_generator, futures_data, futur
             else:
                 exact_future_light_html = '<span class="arb-light arb-light-green" title="无显著折价空间 (>-0.8%)"></span>'
                 
-        exact_futures_valuation_display = f'<span class="num-font" id="rt-exact-val-{code}">{exact_future_valuation_str}</span>'
+        exact_futures_valuation_display = f'<span class="num-font rt-exact-val-cell" id="rt-exact-val-{code}" data-lof-code="{code}">{exact_future_valuation_str}</span>'
         if exact_future_premium_str != '-':
-            exact_futures_valuation_display += f'<br><span class="num-font {exact_future_premium_cls}" id="rt-exact-prem-{code}" style="font-size:14px;">{exact_future_premium_str}</span><span id="rt-exact-light-{code}">{exact_future_light_html}</span>'
+            exact_futures_valuation_display += f'<br><span class="num-font rt-exact-prem-cell {exact_future_premium_cls}" id="rt-exact-prem-{code}" data-lof-code="{code}" style="font-size:14px;">{exact_future_premium_str}</span><span class="rt-exact-light-cell" id="rt-exact-light-{code}" data-lof-code="{code}">{exact_future_light_html}</span>'
         else:
-            exact_futures_valuation_display += f'<br><span class="num-font" id="rt-exact-prem-{code}" style="font-size:14px;"></span><span id="rt-exact-light-{code}"></span>'
+            exact_futures_valuation_display += f'<br><span class="num-font rt-exact-prem-cell" id="rt-exact-prem-{code}" data-lof-code="{code}" style="font-size:14px;"></span><span class="rt-exact-light-cell" id="rt-exact-light-{code}" data-lof-code="{code}"></span>'
         
         # 为指数表准备的合并实时估值单元格
         combined_realtime_td_index = f"""
@@ -1244,7 +1244,7 @@ def generate_fund_data(fund, data_processor, html_generator, futures_data, futur
                 <td style="width: 65px;"><span class="num-font">{nav_home:.4f}</span><span class="base-date-hint">{nav_home_date}</span></td>
                 <td class="col-static-bg clickable-cell" onclick="showDetail('page-{code}')" title="点击查看【静态官方估值】对账明细" style="width: 95px;"><span class="num-font" style="font-weight:bold;color:#d35400">{est_home_str}</span><span class="base-date-hint">{est_home_date}</span></td>
                 <td class="col-static-bg" style="width: 70px;"><span class="num-font">{close_str}</span><span class="base-date-hint">{price_date}</span></td>
-                <td class="col-static-bg" style="width: 90px; border-right: 2px solid #fff;"><span class="num-font" id="realtime-price-{code}">-</span><br><span id="t-1-premium-{code}" class="num-font premium-big {h_p_cls}" style="font-size:14px;">{h_p_txt}</span></td>
+                <td class="col-static-bg" style="width: 90px; border-right: 2px solid #fff;"><span class="num-font realtime-price-cell" id="realtime-price-{code}" data-lof-code="{code}">-</span><br><span id="t-1-premium-{code}" class="num-font premium-big t-1-premium-cell {h_p_cls}" data-lof-code="{code}" style="font-size:14px;">{h_p_txt}</span></td>
                 {combined_realtime_td_index}
             </tr>"""
         else:
@@ -1257,7 +1257,7 @@ def generate_fund_data(fund, data_processor, html_generator, futures_data, futur
                     <td style="width: 65px;"><span class="num-font">{nav_home:.4f}</span><span class="base-date-hint">{nav_home_date}</span></td>
                     <td class="col-static-bg clickable-cell" onclick="showDetail('page-{code}')" title="点击查看【静态官方估值】对账明细" style="width: 95px;"><span class="num-font" style="font-weight:bold;color:#d35400">{est_home_str}</span><span class="base-date-hint">{est_home_date}</span></td>
                     <td class="col-static-bg" style="width: 70px;"><span class="num-font">{close_str}</span><span class="base-date-hint">{price_date}</span></td>
-                    <td class="col-static-bg" style="width: 90px; border-right: 2px solid #fff;"><span class="num-font" id="realtime-price-{code}">-</span><br><span id="t-1-premium-{code}" class="num-font premium-big {h_p_cls}" style="font-size:14px;">{h_p_txt}</span></td>
+                    <td class="col-static-bg" style="width: 90px; border-right: 2px solid #fff;"><span class="num-font realtime-price-cell" id="realtime-price-{code}" data-lof-code="{code}">-</span><br><span id="t-1-premium-{code}" class="num-font premium-big t-1-premium-cell {h_p_cls}" data-lof-code="{code}" style="font-size:14px;">{h_p_txt}</span></td>
                     <td onclick="window.openSandbox(\'{code}\', \'etf\')" class="clickable-cell col-realtime-bg" title="点击打开实时估值沙盘" style="width: 120px;">{etf_valuation_display}</td>
                     <td colspan="2" style="color:#9e9e9e; text-align:center; width: 240px;">无期货对应</td>
                 </tr>"""
@@ -1270,7 +1270,7 @@ def generate_fund_data(fund, data_processor, html_generator, futures_data, futur
                     <td style="width: 65px;"><span class="num-font">{nav_home:.4f}</span><span class="base-date-hint">{nav_home_date}</span></td>
                     <td class="col-static-bg clickable-cell" onclick="showDetail('page-{code}')" title="点击查看【静态官方估值】对账明细" style="width: 95px;"><span class="num-font" style="font-weight:bold;color:#d35400">{est_home_str}</span><span class="base-date-hint">{est_home_date}</span></td>
                     <td class="col-static-bg" style="width: 70px;"><span class="num-font">{close_str}</span><span class="base-date-hint">{price_date}</span></td>
-                    <td class="col-static-bg" style="width: 90px; border-right: 2px solid #fff;"><span class="num-font" id="realtime-price-{code}">-</span><br><span id="t-1-premium-{code}" class="num-font premium-big {h_p_cls}" style="font-size:14px;">{h_p_txt}</span></td>
+                    <td class="col-static-bg" style="width: 90px; border-right: 2px solid #fff;"><span class="num-font realtime-price-cell" id="realtime-price-{code}" data-lof-code="{code}">-</span><br><span id="t-1-premium-{code}" class="num-font premium-big t-1-premium-cell {h_p_cls}" data-lof-code="{code}" style="font-size:14px;">{h_p_txt}</span></td>
                     <td onclick="window.openSandbox(\'{code}\', \'etf\')" class="clickable-cell col-realtime-bg" title="点击打开实时估值沙盘" style="flex: 1; min-width: 200px;">{etf_valuation_display}</td>
                 </tr>"""
             else:
@@ -1281,7 +1281,7 @@ def generate_fund_data(fund, data_processor, html_generator, futures_data, futur
                     <td style="width: 65px;"><span class="num-font">{nav_home:.4f}</span><span class="base-date-hint">{nav_home_date}</span></td>
                     <td class="col-static-bg clickable-cell" onclick="showDetail('page-{code}')" title="点击查看【静态官方估值】对账明细" style="width: 95px;"><span class="num-font" style="font-weight:bold;color:#d35400">{est_home_str}</span><span class="base-date-hint">{est_home_date}</span></td>
                     <td class="col-static-bg" style="width: 70px;"><span class="num-font">{close_str}</span><span class="base-date-hint">{price_date}</span></td>
-                    <td class="col-static-bg" style="width: 90px; border-right: 2px solid #fff;"><span class="num-font" id="realtime-price-{code}">-</span><br><span id="t-1-premium-{code}" class="num-font premium-big {h_p_cls}" style="font-size:14px;">{h_p_txt}</span></td>
+                    <td class="col-static-bg" style="width: 90px; border-right: 2px solid #fff;"><span class="num-font realtime-price-cell" id="realtime-price-{code}" data-lof-code="{code}">-</span><br><span id="t-1-premium-{code}" class="num-font premium-big t-1-premium-cell {h_p_cls}" data-lof-code="{code}" style="font-size:14px;">{h_p_txt}</span></td>
                     {combined_realtime_td_main}
                 </tr>"""
     
@@ -1937,6 +1937,18 @@ def generate(futures_data=None, ib_data=None):
             socket.on('disconnect', function() {
                 console.log('WebSocket断开连接');
             });
+            
+            socket.on('lof_price_update', function(data) {
+                if (!data || !data.code) return;
+                window.applyLofPriceUpdate(data.code, data.price);
+            });
+            
+            socket.on('lof_price_snapshot', function(data) {
+                if (!data || !data.prices) return;
+                Object.keys(data.prices).forEach(function(code) {
+                    window.applyLofPriceUpdate(code, data.prices[code]);
+                });
+            });
 
             // 接收期货价格更新
             socket.on('futures_price_update', function(data) {
@@ -2054,6 +2066,70 @@ def generate(futures_data=None, ib_data=None):
                 return 0;
             };
             
+            function setRealtimeValuationCells(code, text, color, fontWeight) {
+                getLofCodeElements('realtime-valuation-cell', code, 'realtime-valuation-').forEach(function(el) {
+                    el.textContent = text;
+                    if (color !== undefined) el.style.color = color;
+                    if (fontWeight !== undefined) el.style.fontWeight = fontWeight;
+                });
+            }
+            
+            function setRealtimePremiumCells(code, text, color, fontWeight) {
+                getLofCodeElements('realtime-premium-cell', code, 'realtime-premium-').forEach(function(el) {
+                    el.textContent = text;
+                    if (color !== undefined) el.style.color = color;
+                    if (fontWeight !== undefined) el.style.fontWeight = fontWeight;
+                });
+            }
+            
+            function setRealtimeLightCells(code, html) {
+                getLofCodeElements('realtime-light-cell', code, 'realtime-light-').forEach(function(el) {
+                    el.innerHTML = html || '';
+                });
+            }
+            
+            function setCalibValCells(code, text, color, fontWeight) {
+                getLofCodeElements('rt-calib-val-cell', code, 'rt-calib-val-').forEach(function(el) {
+                    el.textContent = text;
+                    if (color !== undefined) el.style.color = color;
+                    if (fontWeight !== undefined) el.style.fontWeight = fontWeight;
+                });
+            }
+            
+            function setCalibPremCells(code, text, color) {
+                getLofCodeElements('rt-calib-prem-cell', code, 'rt-calib-prem-').forEach(function(el) {
+                    el.textContent = text;
+                    if (color !== undefined) el.style.color = color;
+                });
+            }
+            
+            function setCalibLightCells(code, html) {
+                getLofCodeElements('rt-calib-light-cell', code, 'rt-calib-light-').forEach(function(el) {
+                    el.innerHTML = html || '';
+                });
+            }
+            
+            function setExactValCells(code, text, color, fontWeight) {
+                getLofCodeElements('rt-exact-val-cell', code, 'rt-exact-val-').forEach(function(el) {
+                    el.textContent = text;
+                    if (color !== undefined) el.style.color = color;
+                    if (fontWeight !== undefined) el.style.fontWeight = fontWeight;
+                });
+            }
+            
+            function setExactPremCells(code, text, color) {
+                getLofCodeElements('rt-exact-prem-cell', code, 'rt-exact-prem-').forEach(function(el) {
+                    el.textContent = text;
+                    if (color !== undefined) el.style.color = color;
+                });
+            }
+            
+            function setExactLightCells(code, html) {
+                getLofCodeElements('rt-exact-light-cell', code, 'rt-exact-light-').forEach(function(el) {
+                    el.innerHTML = html || '';
+                });
+            }
+            
             // 高效的O(1)计算实时估值函数，抛弃AJAX读取CSV的卡顿机制
             function calculateETFRealTimeValuation(fundCode, category, gldPrice, usoPrice, xopPrice, xbiPrice, slvPrice, spyPrice, qqqPrice, staticValuation) {
                 var baseData = window.fundBaseData[fundCode];
@@ -2155,13 +2231,10 @@ def generate(futures_data=None, ib_data=None):
                 });
                 
                 // 设置ETF估值的实时价格 - 直接从 realtime-price-{code} 读取即可，不需要 sb-live-price-{code}
-                var livePriceEl = document.getElementById('realtime-price-' + code);
-                if(livePriceEl) {
-                    var lpText = livePriceEl.textContent;
-                    var lpMatch = lpText.match(/[\d.]+/);
-                    var tpInput = document.getElementById('sb-target-price-' + code);
-                    if (lpMatch && tpInput) { tpInput.value = parseFloat(lpMatch[0]); }
-                }
+                var lpText = getLofRealtimePriceText(code);
+                var lpMatch = lpText.match(/[\d.]+/);
+                var tpInput = document.getElementById('sb-target-price-' + code);
+                if (lpMatch && tpInput) { tpInput.value = parseFloat(lpMatch[0]); }
                 
                 // 2. 初始化期货校准估值的价格数据（使用与主面板相同的实时期货价格）
                 var futSym = baseData.futureSymbol;
@@ -2365,8 +2438,7 @@ def generate(futures_data=None, ib_data=None):
                 var capitalA = capitalInput ? parseFloat(capitalInput.value) || 0 : 0;
                 
                 // 直接从 realtime-price-{code} 读取，更可靠
-                var realtimePriceEl = document.getElementById('realtime-price-' + code);
-                var lofLivePriceStr = realtimePriceEl ? realtimePriceEl.textContent : '';
+                var lofLivePriceStr = getLofRealtimePriceText(code);
                 var lofLiveMatch = lofLivePriceStr ? lofLivePriceStr.match(/[\d.]+/) : null;
                 var lofRealtimePrice = lofLiveMatch ? parseFloat(lofLiveMatch[0]) : 0;
                 
@@ -2599,8 +2671,7 @@ def generate(futures_data=None, ib_data=None):
                 if (valEl) valEl.textContent = val.toFixed(4);
                 
                 // 计算当前实盘价对应溢价 - 直接从 realtime-price-{code} 读取
-                var livePriceEl = document.getElementById('realtime-price-' + code);
-                var livePriceStr = livePriceEl ? livePriceEl.textContent : '';
+                var livePriceStr = getLofRealtimePriceText(code);
                 var livePriceMatch = livePriceStr.match(/[\d.]+/);
                 if (livePriceMatch) {
                     var livePrice = parseFloat(livePriceMatch[0]);
@@ -2989,8 +3060,7 @@ def generate(futures_data=None, ib_data=None):
                         var category = categoryCell.textContent.trim();
                         var staticValuation = parseFloat(staticValuationCell.textContent) || 0;
                         
-                        var closePriceElement = document.getElementById('realtime-price-' + code);
-                        var closePriceText = closePriceElement ? closePriceElement.textContent : '';
+                        var closePriceText = getLofRealtimePriceText(code);
                         var closePriceMatch = closePriceText.match(/\d+(?:\.\d+)?/);
                         var closePrice = closePriceMatch ? parseFloat(closePriceMatch[0]) : 0;
                         
@@ -2999,23 +3069,9 @@ def generate(futures_data=None, ib_data=None):
                             if (closePrice === 0) return;
                         }
                         
-                        var etfValuationElement = document.getElementById('realtime-valuation-' + code);
-                        var etfPremiumElement = document.getElementById('realtime-premium-' + code);
-                        var etfLightElement = document.getElementById('realtime-light-' + code);
-                        
-                        if (etfValuationElement) {
-                            etfValuationElement.textContent = '-';
-                            etfValuationElement.style.color = '';
-                            etfValuationElement.style.fontWeight = '';
-                        }
-                        if (etfPremiumElement) {
-                            etfPremiumElement.textContent = '-';
-                            etfPremiumElement.style.color = '';
-                            etfPremiumElement.style.fontWeight = '';
-                        }
-                        if (etfLightElement) {
-                            etfLightElement.innerHTML = '';
-                        }
+                        setRealtimeValuationCells(code, '-', '', '');
+                        setRealtimePremiumCells(code, '-', '', '');
+                        setRealtimeLightCells(code, '');
                         
                         // 核心修复：废弃硬编码！动态遍历其底层篮子，只要所有成分都有报价才允许计算
                         var canCalculate = false;
@@ -3035,28 +3091,14 @@ def generate(futures_data=None, ib_data=None):
                             if (etfRealTimeValuation && etfRealTimeValuation > 0) {
                                 var etfRealTimePremium = (closePrice - etfRealTimeValuation) / etfRealTimeValuation * 100;
                                 
-                                if (etfValuationElement) {
-                                    etfValuationElement.textContent = etfRealTimeValuation.toFixed(4);
-                                    etfValuationElement.style.color = afterClose ? '#757575' : '#007bff';
-                                    etfValuationElement.style.fontWeight = 'bold';
-                                }
-
-                                if (etfPremiumElement) {
-                                    etfPremiumElement.textContent = (etfRealTimePremium >= 0 ? '+' : '') + etfRealTimePremium.toFixed(2) + '%';
-                                    etfPremiumElement.style.color = afterClose ? '#9e9e9e' : (etfRealTimePremium >= 0 ? '#2e7d32' : '#d32f2f');
-                                    etfPremiumElement.style.fontWeight = 'bold';
-                                }
-                                if (etfLightElement) {
-                                    if (afterClose) {
-                                        etfLightElement.innerHTML = '<span class="arb-light" style="background-color:#bdbdbd; opacity:0.6;" title="收盘后由于IB行情限制，已冻结"></span>';
-                                    } else {
-                                        if (etfRealTimePremium <= -0.8) {
-                                            etfLightElement.innerHTML = '<span class="arb-light arb-light-red" title="存在折价套利空间 (≤-0.8%)"></span>';
-                                            
-                                        } else {
-                                            etfLightElement.innerHTML = '<span class="arb-light arb-light-green" title="无显著折价空间 (>-0.8%)"></span>';
-                                        }
-                                    }
+                                setRealtimeValuationCells(code, etfRealTimeValuation.toFixed(4), afterClose ? '#757575' : '#007bff', 'bold');
+                                setRealtimePremiumCells(code, (etfRealTimePremium >= 0 ? '+' : '') + etfRealTimePremium.toFixed(2) + '%', afterClose ? '#9e9e9e' : (etfRealTimePremium >= 0 ? '#2e7d32' : '#d32f2f'), 'bold');
+                                if (afterClose) {
+                                    setRealtimeLightCells(code, '<span class="arb-light" style="background-color:#bdbdbd; opacity:0.6;" title="收盘后由于IB行情限制，已冻结"></span>');
+                                } else if (etfRealTimePremium <= -0.8) {
+                                    setRealtimeLightCells(code, '<span class="arb-light arb-light-red" title="存在折价套利空间 (≤-0.8%)"></span>');
+                                } else {
+                                    setRealtimeLightCells(code, '<span class="arb-light arb-light-green" title="无显著折价空间 (>-0.8%)"></span>');
                                 }
                             }
                         }
@@ -3231,8 +3273,7 @@ def generate(futures_data=None, ib_data=None):
                     var targetRow = Array.from(allRows).find(r => r.cells.length >= 10 && r.cells[0].textContent.trim() === code);
                     if (targetRow) staticValuation = parseFloat(targetRow.cells[5].textContent) || 0;
 
-                    var closePriceElement = document.getElementById('realtime-price-' + code);
-                    var closePriceText = closePriceElement ? closePriceElement.textContent : '';
+                    var closePriceText = getLofRealtimePriceText(code);
                     var closePriceMatch = closePriceText.match(/\d+(?:\.\d+)?/);
                     var livePrice = closePriceMatch ? parseFloat(closePriceMatch[0]) : 0;
                     if (livePrice === 0 || livePrice > 9999) livePrice = staticValuation;
@@ -3252,16 +3293,10 @@ def generate(futures_data=None, ib_data=None):
                         var equivEtf = futCalibPrice / calibFactor;
                         var calibVal = baseData.baseNav * (1.0 - baseData.position) + (equivEtf * effectiveExchangeRate) / hedgeValue;
                         
-                        var calibValEl = document.getElementById('rt-calib-val-' + code);
-                        var calibPremEl = document.getElementById('rt-calib-prem-' + code);
-                        var calibLightEl = document.getElementById('rt-calib-light-' + code);
-                        if (calibValEl) { calibValEl.textContent = calibVal.toFixed(4); calibValEl.style.color = '#1976d2'; calibValEl.style.fontWeight = 'bold'; }
-                        if (calibPremEl) {
-                            var prem = (premiumBasePrice / calibVal - 1) * 100;
-                            calibPremEl.textContent = (prem >= 0 ? '+' : '') + prem.toFixed(2) + '%';
-                            calibPremEl.style.color = prem >= 0 ? '#2e7d32' : '#d32f2f';
-                            if (calibLightEl) calibLightEl.innerHTML = prem <= -0.8 ? '<span class="arb-light arb-light-red" title="存在折价套利空间 (≤-0.8%)"></span>' : '<span class="arb-light arb-light-green" title="无显著折价空间 (>-0.8%)"></span>';
-                        }
+                        setCalibValCells(code, calibVal.toFixed(4), '#1976d2', 'bold');
+                        var prem = (premiumBasePrice / calibVal - 1) * 100;
+                        setCalibPremCells(code, (prem >= 0 ? '+' : '') + prem.toFixed(2) + '%', prem >= 0 ? '#2e7d32' : '#d32f2f');
+                        setCalibLightCells(code, prem <= -0.8 ? '<span class="arb-light arb-light-red" title="存在折价套利空间 (≤-0.8%)"></span>' : '<span class="arb-light arb-light-green" title="无显著折价空间 (>-0.8%)"></span>');
                     } else {
                         // 降级: 矩阵方式
                         var equivEtf = calibFactor > 0 ? futCalibPrice / calibFactor : 0;
@@ -3278,16 +3313,10 @@ def generate(futures_data=None, ib_data=None):
                         
                         if (weightedChange > 0) {
                             var calibVal = baseData.baseNav * (1 + baseData.position * (weightedChange * fxChange - 1));
-                            var calibValEl = document.getElementById('rt-calib-val-' + code);
-                            var calibPremEl = document.getElementById('rt-calib-prem-' + code);
-                            var calibLightEl = document.getElementById('rt-calib-light-' + code);
-                            if (calibValEl) { calibValEl.textContent = calibVal.toFixed(4); calibValEl.style.color = '#1976d2'; calibValEl.style.fontWeight = 'bold'; }
-                            if (calibPremEl) {
-                                var prem = (premiumBasePrice / calibVal - 1) * 100;
-                                calibPremEl.textContent = (prem >= 0 ? '+' : '') + prem.toFixed(2) + '%';
-                                calibPremEl.style.color = prem >= 0 ? '#2e7d32' : '#d32f2f';
-                                if (calibLightEl) calibLightEl.innerHTML = prem <= -0.8 ? '<span class="arb-light arb-light-red" title="存在折价套利空间 (≤-0.8%)"></span>' : '<span class="arb-light arb-light-green" title="无显著折价空间 (>-0.8%)"></span>';
-                            }
+                            setCalibValCells(code, calibVal.toFixed(4), '#1976d2', 'bold');
+                            var prem = (premiumBasePrice / calibVal - 1) * 100;
+                            setCalibPremCells(code, (prem >= 0 ? '+' : '') + prem.toFixed(2) + '%', prem >= 0 ? '#2e7d32' : '#d32f2f');
+                            setCalibLightCells(code, prem <= -0.8 ? '<span class="arb-light arb-light-red" title="存在折价套利空间 (≤-0.8%)"></span>' : '<span class="arb-light arb-light-green" title="无显著折价空间 (>-0.8%)"></span>');
                         }
                     }
 
@@ -3299,32 +3328,20 @@ def generate(futures_data=None, ib_data=None):
                     
                     if (derivedFutureHedge > 0) {
                         var exactVal = baseData.baseNav * (1.0 - baseData.position) + (futPrice * effectiveExchangeRate) / derivedFutureHedge;
-                        var exactValEl = document.getElementById('rt-exact-val-' + code);
-                        var exactPremEl = document.getElementById('rt-exact-prem-' + code);
-                        var exactLightEl = document.getElementById('rt-exact-light-' + code);
-                        if (exactValEl) { exactValEl.textContent = exactVal.toFixed(4); exactValEl.style.color = '#1976d2'; exactValEl.style.fontWeight = 'bold'; }
-                        if (exactPremEl) {
-                            var prem2 = (premiumBasePrice / exactVal - 1) * 100;
-                            exactPremEl.textContent = (prem2 >= 0 ? '+' : '') + prem2.toFixed(2) + '%';
-                            exactPremEl.style.color = prem2 >= 0 ? '#2e7d32' : '#d32f2f';
-                            if (exactLightEl) exactLightEl.innerHTML = prem2 <= -0.8 ? '<span class="arb-light arb-light-red" title="存在折价套利空间 (≤-0.8%)"></span>' : '<span class="arb-light arb-light-green" title="无显著折价空间 (>-0.8%)"></span>';
-                        }
+                        setExactValCells(code, exactVal.toFixed(4), '#1976d2', 'bold');
+                        var prem2 = (premiumBasePrice / exactVal - 1) * 100;
+                        setExactPremCells(code, (prem2 >= 0 ? '+' : '') + prem2.toFixed(2) + '%', prem2 >= 0 ? '#2e7d32' : '#d32f2f');
+                        setExactLightCells(code, prem2 <= -0.8 ? '<span class="arb-light arb-light-red" title="存在折价套利空间 (≤-0.8%)"></span>' : '<span class="arb-light arb-light-green" title="无显著折价空间 (>-0.8%)"></span>');
                     } else {
                         // 降级: 矩阵方式
                         var exactChange = 0;
                         if (baseData.baseFuturePrice > 0) exactChange = futPrice / baseData.baseFuturePrice;
                         if (exactChange > 0) {
                             var exactVal = baseData.baseNav * (1 + baseData.position * (exactChange * fxChange - 1));
-                            var exactValEl = document.getElementById('rt-exact-val-' + code);
-                            var exactPremEl = document.getElementById('rt-exact-prem-' + code);
-                            var exactLightEl = document.getElementById('rt-exact-light-' + code);
-                            if (exactValEl) { exactValEl.textContent = exactVal.toFixed(4); exactValEl.style.color = '#1976d2'; exactValEl.style.fontWeight = 'bold'; }
-                            if (exactPremEl) {
-                                var prem2 = (premiumBasePrice / exactVal - 1) * 100;
-                                exactPremEl.textContent = (prem2 >= 0 ? '+' : '') + prem2.toFixed(2) + '%';
-                                exactPremEl.style.color = prem2 >= 0 ? '#2e7d32' : '#d32f2f';
-                                if (exactLightEl) exactLightEl.innerHTML = prem2 <= -0.8 ? '<span class="arb-light arb-light-red" title="存在折价套利空间 (≤-0.8%)"></span>' : '<span class="arb-light arb-light-green" title="无显著折价空间 (>-0.8%)"></span>';
-                            }
+                            setExactValCells(code, exactVal.toFixed(4), '#1976d2', 'bold');
+                            var prem2 = (premiumBasePrice / exactVal - 1) * 100;
+                            setExactPremCells(code, (prem2 >= 0 ? '+' : '') + prem2.toFixed(2) + '%', prem2 >= 0 ? '#2e7d32' : '#d32f2f');
+                            setExactLightCells(code, prem2 <= -0.8 ? '<span class="arb-light arb-light-red" title="存在折价套利空间 (≤-0.8%)"></span>' : '<span class="arb-light arb-light-green" title="无显著折价空间 (>-0.8%)"></span>');
                         }
                     }
                 });
@@ -3359,6 +3376,84 @@ def generate(futures_data=None, ib_data=None):
             }
 
             var exchangeRateInterval = null;
+            
+            function getLofCodeElements(className, code, legacyIdPrefix) {
+                var cleanCode = String(code || '').split('.')[0].trim();
+                var selector = '.' + className + '[data-lof-code="' + cleanCode + '"]';
+                var elements = Array.from(document.querySelectorAll(selector));
+                var legacyEl = document.getElementById(legacyIdPrefix + cleanCode);
+                if (legacyEl && elements.indexOf(legacyEl) === -1) {
+                    elements.push(legacyEl);
+                }
+                return elements;
+            }
+
+            function getLofRealtimePriceText(code) {
+                var elements = getLofCodeElements('realtime-price-cell', code, 'realtime-price-');
+                for (var i = 0; i < elements.length; i++) {
+                    var text = (elements[i].textContent || '').trim();
+                    if (/\d+(?:\.\d+)?/.test(text)) return text;
+                }
+                return elements.length ? (elements[0].textContent || '') : '';
+            }
+            
+            function updateRealtimePriceCells(code, text, color, fontWeight) {
+                getLofCodeElements('realtime-price-cell', code, 'realtime-price-').forEach(function(el) {
+                    el.textContent = text;
+                    if (color !== undefined) el.style.color = color;
+                    if (fontWeight !== undefined) el.style.fontWeight = fontWeight;
+                });
+            }
+            
+            function updateT1PremiumCells(code, text, cls) {
+                getLofCodeElements('t-1-premium-cell', code, 't-1-premium-').forEach(function(el) {
+                    el.textContent = text;
+                    el.className = "num-font premium-big t-1-premium-cell " + (cls || "");
+                });
+            }
+            
+            function getLofHomeRows(code) {
+                var cleanCode = String(code || '').split('.')[0].trim();
+                var allRows = document.querySelectorAll('#tab-1 tbody tr, #tab-2 tbody tr, #tab-3 tbody tr');
+                return Array.from(allRows).filter(function(row) {
+                    var cells = row.querySelectorAll('td');
+                    if (cells.length < 9) return false;
+                    var rowCode = cells[0].textContent.trim().split('.')[0];
+                    return rowCode === cleanCode;
+                });
+            }
+            
+            function applyLofPriceUpdate(code, rawPrice) {
+                var cleanCode = String(code || '').split('.')[0].trim();
+                var price = parseFloat(rawPrice);
+                if (!cleanCode || !(price > 0)) return;
+                
+                var afterClose = isAfterMarketClose();
+                if (!isTradingDay() || afterClose) {
+                    updateRealtimePriceCells(cleanCode, price.toFixed(3), '#2e7d32', 'bold');
+                } else {
+                    updateRealtimePriceCells(cleanCode, price.toFixed(3), '', '');
+                }
+                
+                var rows = getLofHomeRows(cleanCode);
+                for (var i = 0; i < rows.length; i++) {
+                    var cells = rows[i].querySelectorAll('td');
+                    var staticValuation = parseFloat(cells[5].textContent) || 0;
+                    if (staticValuation > 0) {
+                        var pct = (price / staticValuation - 1) * 100;
+                        var cls = pct >= 0 ? "" : "neg-value";
+                        var sign = pct > 0 ? "+" : "";
+                        updateT1PremiumCells(cleanCode, sign + pct.toFixed(2) + "%", cls);
+                        break;
+                    }
+                }
+                
+                window.calculateRealTimeValues();
+                if (window.lastKnownFutures) {
+                    window.updateFuturesTableColumns(window.lastKnownFutures.GC, window.lastKnownFutures.CL, window.lastKnownFutures.NQ, window.lastKnownFutures.ES, window.lastKnownFutures.NQ_BID, window.lastKnownFutures.ES_BID);
+                }
+            }
+            window.applyLofPriceUpdate = applyLofPriceUpdate;
             
             // 实时更新顶部汇率显示，并在获取到今日数据后自动停止轮询
             function updateExchangeRate() {
@@ -3410,40 +3505,21 @@ def generate(futures_data=None, ib_data=None):
                             var cells = row.querySelectorAll('td');
                             if (cells.length >= 9) {
                                 var codeCell = cells[0];
-                                var code = codeCell.textContent.trim();
-                                var realTimePriceElement = document.getElementById('realtime-price-' + code);
-                                var t1PremiumElement = document.getElementById('t-1-premium-' + code);
-                                var staticValuation = parseFloat(cells[5].textContent) || 0; // 修正列索引，第5列才是静态估值
+                                var code = codeCell.textContent.trim().split('.')[0];
                                 
                                 if (data[code] && data[code].price > 0) {
-                                    if (realTimePriceElement) {
-                                        realTimePriceElement.textContent = data[code].price.toFixed(3);
-                                        if (!tradingDay || afterClose) {
-                                            realTimePriceElement.style.color = '#2e7d32';
-                                            realTimePriceElement.style.fontWeight = 'bold';
-                                        } else {
-                                            realTimePriceElement.style.color = '';
-                                            realTimePriceElement.style.fontWeight = '';
-                                        }
-                                    }
-                                    if (t1PremiumElement && staticValuation > 0) {
-                                        var pct = (data[code].price / staticValuation - 1) * 100;
-                                        var cls = pct >= 0 ? "" : "neg-value";
-                                        var sign = pct > 0 ? "+" : "";
-                                        t1PremiumElement.textContent = sign + pct.toFixed(2) + "%";
-                                        t1PremiumElement.className = "num-font premium-big " + cls;
-                                    }
+                                    window.applyLofPriceUpdate(code, data[code].price);
                                 } else {
                                     if (!tradingDay) {
-                                        if (realTimePriceElement) realTimePriceElement.textContent = '非交易日';
+                                        updateRealtimePriceCells(code, '非交易日');
                                     } else if (tradingHours) {
-                                        if (realTimePriceElement) realTimePriceElement.textContent = '读取不到实时价格';
+                                        updateRealtimePriceCells(code, '读取不到实时价格');
                                     } else if (afterClose) {
-                                        if (realTimePriceElement) realTimePriceElement.textContent = '读取不到当天收盘价';
+                                        updateRealtimePriceCells(code, '读取不到当天收盘价');
                                     } else {
-                                        if (realTimePriceElement) realTimePriceElement.textContent = '休盘';
+                                        updateRealtimePriceCells(code, '休盘');
                                     }
-                                    if (t1PremiumElement) t1PremiumElement.textContent = '';
+                                    updateT1PremiumCells(code, '', '');
                                 }
                             }
                         });

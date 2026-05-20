@@ -4,6 +4,13 @@
 import socket
 import threading
 import time
+import re
+
+
+def normalize_qmt_code(code) -> str:
+    """Extract the 6-digit security code from QMT symbols like 162411.SZ or SZ.162411."""
+    match = re.search(r'(\d{6})', str(code or ''))
+    return match.group(1) if match else str(code or '').strip()
 
 class QmtSocketClient:
     """银河QMT Socket长连接客户端"""
@@ -64,6 +71,7 @@ class QmtSocketClient:
         
         self.recv_thread.start()
         self.heartbeat_thread.start()
+        self.send_msg("TICK_PUSH_ON")
         
         print("✅ [银河QMT] 已成功转为长连接接收模式")
     
@@ -161,7 +169,7 @@ class QmtSocketClient:
                 bid_p2 = float(parts[10]) if parts[10] else 0
                 bid_v2 = float(parts[11]) if parts[11] else 0
                 
-                code = code_full.split('.')[0] if '.' in code_full else code_full
+                code = normalize_qmt_code(code_full)
                 
                 # 优先使用卖一价，如果卖一价为0（比如涨停），则使用最新成交价作为替代
                 price_to_use = ask_p1 if ask_p1 > 0 else last_price
@@ -190,7 +198,7 @@ class QmtSocketClient:
                 code_full = parts[1]
                 last_price = float(parts[2]) if parts[2] else 0
                 ask_price = float(parts[4]) if parts[4] else 0
-                code = code_full.split('.')[0] if '.' in code_full else code_full
+                code = normalize_qmt_code(code_full)
                 price_to_use = ask_price if ask_price > 0 else last_price
                 if price_to_use > 0:
                     with self.lock:
@@ -215,12 +223,12 @@ class QmtSocketClient:
     def get_price(self, code: str) -> float:
         """获取指定代码的实时价格"""
         with self.lock:
-            return self.prices.get(code, 0)
+            return self.prices.get(normalize_qmt_code(code), 0)
     
     def get_order_book(self, code: str) -> dict:
         """获取指定代码的完整盘口数据"""
         with self.lock:
-            return self.order_books.get(code, {})
+            return self.order_books.get(normalize_qmt_code(code), {})
             
     def ping(self) -> bool:
         """心跳检测"""

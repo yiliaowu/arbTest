@@ -87,6 +87,11 @@ def init_trade_manager(preload_brokers=None):
 app = Flask(__name__)
 socketio = SocketIO(app, cors_allowed_origins="*", async_mode="threading")
 
+def normalize_security_code(code):
+    """Extract the 6-digit fund/security code from values such as 162411.SZ or SZ.162411."""
+    match = re.search(r'(\d{6})', str(code or ''))
+    return match.group(1) if match else str(code or '').strip()
+
 # 基础目录与状态文件
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 LOGS_DIR = os.path.join(BASE_DIR, "logs")
@@ -648,7 +653,7 @@ class LOFPriceReader:
                     except (ValueError, TypeError):
                         return # 静默忽略非价格数据
 
-                    clean_code = code.split('.')[0] if '.' in code else code
+                    clean_code = normalize_security_code(code)
                     
                     # 尝试从 qmt_client 提取完整五档盘口字典
                     order_book = None
@@ -741,7 +746,7 @@ class LOFPriceReader:
             
     def get_price(self, symbol):
         """获取LOF交易价格"""
-        return self.lof_prices.get(symbol, 0)
+        return self.lof_prices.get(normalize_security_code(symbol), 0)
 
     def stop_price_polling(self):
         self.running = False
@@ -807,7 +812,14 @@ class LOFPriceReader:
 
                                 if price_to_use > 0:
                                     code = stock.split('.')[0]
+                                    old_price = self.lof_prices.get(code, 0)
                                     self.lof_prices[code] = price_to_use
+                                    if old_price != price_to_use:
+                                        socketio.emit('lof_price_update', {
+                                            'code': code,
+                                            'price': price_to_use,
+                                            'timestamp': datetime.now().strftime('%H:%M:%S.%f')[:-3]
+                                        })
                                     if not hasattr(self, '_tdx_success_logged'):
                                         print(f"  ✅ [行情状态] 通达信接口首次获取 {code} 成功，链路畅通！")
                                         self._tdx_success_logged = True
@@ -870,7 +882,7 @@ class LOFPriceReader:
                 
                 # 优雅启动：系统启动前 15 秒绝对不触发新浪兜底，给 QMT 充足的建连和推流时间！
                 if current_time - getattr(self, 'start_time', 0) > 15 and current_time - last_sina_time > 20:
-                    missing_codes = [c for c in self.lof_codes if self.get_price(c.split('.')[0] if '.' in c else c) == 0]
+                    missing_codes = [normalize_security_code(c) for c in self.lof_codes if self.get_price(c) == 0]
                     if missing_codes:
                         qs = [f"{'sh' if c.startswith('5') else 'sz'}{c}" for c in missing_codes]
                         for i in range(0, len(qs), 40):
@@ -956,7 +968,7 @@ class FuturePriceService:
         if ib_price > 0:
             return ib_price
         if symbol in self.TWS_MICRO_FUTURES:
-            return 0
+            return self.sina_reader.prices.get(ib_symbol, self.sina_reader.prices.get(symbol, 0))
         return self.sina_reader.prices.get(ib_symbol, self.sina_reader.prices.get(symbol, 0))
 
     def _map_symbol(self, symbol):
@@ -991,12 +1003,12 @@ class FuturePriceService:
             month = getattr(self.ib_reader, 'future_contract_months', {}).get(ib_symbol, '')
             suffix = f"{month} " if month else ""
             return f"TWS {suffix}{ib_symbol}"
+        if self.sina_reader.prices.get(ib_symbol, 0) > 0 or self.sina_reader.prices.get(symbol, 0) > 0:
+            return f"主连期货({self.sina_reader.get_source(ib_symbol)})"
         if symbol in self.TWS_MICRO_FUTURES:
             if not getattr(self.ib_reader, 'connected', False):
                 return 'TWS未连接'
             return f"TWS未读到{ib_symbol}"
-        if self.sina_reader.prices.get(ib_symbol, 0) > 0 or self.sina_reader.prices.get(symbol, 0) > 0:
-            return f"主连期货({self.sina_reader.get_source(ib_symbol)})"
         return '未知'
 
     def get_change_percent(self, symbol):
@@ -1143,7 +1155,7 @@ def get_exchange_rate():
 
 @app.route('/api/lof')
 def get_all_lof_data():
-    return jsonify({code: {'price': lof_price_reader.get_price(code), 'time': datetime.now().strftime('%H:%M:%S')} for code in lof_price_reader.lof_codes})
+    return jsonify({normalize_security_code(code): {'price': lof_price_reader.get_price(code), 'time': datetime.now().strftime('%H:%M:%S')} for code in lof_price_reader.lof_codes})
 
 @app.route('/api/lof_source')
 def get_lof_source():
@@ -1212,8 +1224,8 @@ def get_status():
 @app.route('/api/order_book/<code>')
 def get_order_book(code):
     """获取指定A股的五档深度盘口"""
-    # 提取纯数字代码，兼容 '162411' 或 '162411.SZ'
-    clean_code = code.split('.')[0] if '.' in code else code
+    # 提取纯数字代码，兼容 '162411'、'162411.SZ' 或 'SZ.162411'
+    clean_code = normalize_security_code(code)
     
     if lof_price_reader.use_qmt and lof_price_reader.qmt_client:
         book = lof_price_reader.qmt_client.get_order_book(clean_code)
