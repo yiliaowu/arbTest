@@ -567,6 +567,7 @@ class LOFPriceReader:
     """LOF实时盘口报价读取器：QMT Socket优先 > 通达信推送/快照 > 新浪API兜底"""
     def __init__(self):
         self.lof_prices = {}
+        self.lof_bid_prices = {}
         self.running = False
         self.use_tdx = False
         self.use_qmt = False
@@ -621,15 +622,19 @@ class LOFPriceReader:
                     if price_to_use == 0:
                         price_to_use = float(snap.get('Now', 0))
 
+                    bid1 = float(snap.get('Buy1', 0))
                     if price_to_use > 0:
                         code = stock_code.split('.')[0]
                         old_price = self.lof_prices.get(code, 0)
                         self.lof_prices[code] = price_to_use
+                        if bid1 > 0:
+                            self.lof_bid_prices[code] = bid1
                         # WebSocket推送LOF价格更新
                         if old_price != price_to_use:
                             socketio.emit('lof_price_update', {
                                 'code': code,
                                 'price': price_to_use,
+                                'bid_price': bid1,
                                 'timestamp': datetime.now().strftime('%H:%M:%S.%f')[:-3]
                             })
         except:
@@ -663,6 +668,9 @@ class LOFPriceReader:
                     # 严格遵循“卖一价”原则，如果卖一价为0（如涨停封板），则兜底使用 raw_price (通常是最新成交价)
                     price = price_from_raw # 使用已经验证过的数字
                     if order_book:
+                        bid1 = float(order_book.get('bid_p1', order_book.get('bid1_p', 0)))
+                        if bid1 > 0:
+                            self.lof_bid_prices[clean_code] = bid1
                         ask1 = float(order_book.get('ask1_p', order_book.get('ask_p1', 0)))
                         if ask1 > 0:
                             price = ask1
@@ -686,6 +694,7 @@ class LOFPriceReader:
                     payload = {
                         'code': clean_code,
                         'price': price,
+                        'bid_price': self.lof_bid_prices.get(clean_code, 0),
                         'timestamp': datetime.now().strftime('%H:%M:%S.%f')[:-3]
                     }
                     if order_book:
@@ -747,6 +756,9 @@ class LOFPriceReader:
     def get_price(self, symbol):
         """获取LOF交易价格"""
         return self.lof_prices.get(normalize_security_code(symbol), 0)
+
+    def get_bid_price(self, symbol):
+        return self.lof_bid_prices.get(normalize_security_code(symbol), 0)
 
     def stop_price_polling(self):
         self.running = False
@@ -814,10 +826,15 @@ class LOFPriceReader:
                                     code = stock.split('.')[0]
                                     old_price = self.lof_prices.get(code, 0)
                                     self.lof_prices[code] = price_to_use
+                                    bid_prices = tick.get('bidPrice', [0])
+                                    bid1 = float(bid_prices[0]) if bid_prices else 0
+                                    if bid1 > 0:
+                                        self.lof_bid_prices[code] = bid1
                                     if old_price != price_to_use:
                                         socketio.emit('lof_price_update', {
                                             'code': code,
                                             'price': price_to_use,
+                                            'bid_price': bid1,
                                             'timestamp': datetime.now().strftime('%H:%M:%S.%f')[:-3]
                                         })
                                     if not hasattr(self, '_tdx_success_logged'):
@@ -896,11 +913,14 @@ class LOFPriceReader:
                                         parts = match.group(2).split(',')
                                         if len(parts) > 7:
                                             ask_price = float(parts[7])
+                                            bid_price = float(parts[6])
                                             last_price = float(parts[3])
                                             new_price = ask_price if ask_price > 0 else last_price
                                             if new_price > 0:
                                                 self.lof_prices[code] = new_price
-                                                socketio.emit('lof_price_update', {'code': code, 'price': new_price, 'timestamp': datetime.now().strftime('%H:%M:%S.%f')[:-3]})
+                                                if bid_price > 0:
+                                                    self.lof_bid_prices[code] = bid_price
+                                                socketio.emit('lof_price_update', {'code': code, 'price': new_price, 'bid_price': bid_price, 'timestamp': datetime.now().strftime('%H:%M:%S.%f')[:-3]})
                             except: pass
                     self._last_sina_time = current_time
                     
@@ -1080,6 +1100,7 @@ def handle_connect():
     # 发送LOF价格快照
     emit('lof_price_snapshot', {
         'prices': lof_price_reader.lof_prices,
+        'bid_prices': lof_price_reader.lof_bid_prices,
         'timestamp': datetime.now().strftime('%Y-%m-%d %H:%M:%S')
     })
     # 发送期货价格快照：优先 TWS 微型合约，缺失时回落主连行情
@@ -1155,7 +1176,7 @@ def get_exchange_rate():
 
 @app.route('/api/lof')
 def get_all_lof_data():
-    return jsonify({normalize_security_code(code): {'price': lof_price_reader.get_price(code), 'time': datetime.now().strftime('%H:%M:%S')} for code in lof_price_reader.lof_codes})
+    return jsonify({normalize_security_code(code): {'price': lof_price_reader.get_price(code), 'bid_price': lof_price_reader.get_bid_price(code), 'time': datetime.now().strftime('%H:%M:%S')} for code in lof_price_reader.lof_codes})
 
 @app.route('/api/lof_source')
 def get_lof_source():

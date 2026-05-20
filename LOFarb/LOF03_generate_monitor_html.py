@@ -1119,6 +1119,16 @@ def generate_fund_data(fund, data_processor, html_generator, futures_data, futur
                         <div style="display: flex; gap: 50px; justify-content: center; flex-wrap: wrap; width: 100%;">
             """
             
+            html += f"""
+                            <!-- A股 LOF 实时盘口 -->
+                            <div style="display: inline-flex; gap: 8px; font-size: 12px; background: #fff7ed; padding: 5px 10px; border-radius: 4px; border: 1px solid #fed7aa; justify-content: flex-start; box-sizing: border-box;">
+                                <span style="color:#666;">📊 <b style="color:#c2410c;">A股LOF</b> 实时盘口:</span>
+                                <span style="color:#2e7d32; font-weight:bold; cursor:pointer; padding: 0 4px; border-radius: 3px;" onclick="document.getElementById('trade-price-{code}-etf').value = document.getElementById('sb-lof-bid-{code}').innerText" title="点击将买一价填入限价框" onmouseover="this.style.backgroundColor='#e8f5e9'" onmouseout="this.style.backgroundColor='transparent'">买一(Bid): <span id="sb-lof-bid-{code}">未能读到实时数据</span><span id="sb-lof-bid-size-{code}" style="color:#666; font-size:10px; margin-left:4px;">-</span></span>
+                                <span style="color:#d32f2f; font-weight:bold; cursor:pointer; padding: 0 4px; border-radius: 3px;" onclick="document.getElementById('trade-price-{code}-etf').value = document.getElementById('sb-lof-ask-{code}').innerText" title="点击将卖一价填入限价框" onmouseover="this.style.backgroundColor='#ffebee'" onmouseout="this.style.backgroundColor='transparent'">卖一(Ask): <span id="sb-lof-ask-{code}">未能读到实时数据</span><span id="sb-lof-ask-size-{code}" style="color:#666; font-size:10px; margin-left:4px;">-</span></span>
+                                <span style="color:#999; font-size: 10px;">(点击填入)</span>
+                            </div>
+            """
+
             for idx, us_sym in enumerate(trade_etfs):
                 suffix = f"etf" if idx == 0 else f"etf_{idx}"
                 html += f"""
@@ -1380,6 +1390,10 @@ def generate_fund_data(fund, data_processor, html_generator, futures_data, futur
                                 <span style="color:#666; font-size:13px; font-weight:bold;">预测溢价:</span>
                                 <span id="sb-fut-target-prem-{code}" class="num-font" style="font-size: 14px; font-weight: bold;">-</span>
                             </div>
+                            <div style="display: flex; align-items: center; gap: 8px;">
+                                <span style="color:#666; font-size:13px; font-weight:bold;">平仓溢价率:</span>
+                                <span id="sb-fut-close-prem-{code}" class="num-font" style="font-size: 14px; font-weight: bold;">-</span>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -1404,6 +1418,10 @@ def generate_fund_data(fund, data_processor, html_generator, futures_data, futur
                             <div style="display: flex; align-items: center; gap: 8px;">
                                 <span style="color:#666; font-size:13px; font-weight:bold;">预测溢价:</span>
                                 <span id="sb-pure-target-prem-{code}" class="num-font" style="font-size: 14px; font-weight: bold;">-</span>
+                            </div>
+                            <div style="display: flex; align-items: center; gap: 8px;">
+                                <span style="color:#666; font-size:13px; font-weight:bold;">平仓溢价率:</span>
+                                <span id="sb-pure-close-prem-{code}" class="num-font" style="font-size: 14px; font-weight: bold;">-</span>
                             </div>
                         </div>
                     </div>
@@ -1467,6 +1485,10 @@ def generate_fund_data(fund, data_processor, html_generator, futures_data, futur
                                 <div style="display: flex; align-items: center; gap: 8px;">
                                     <span style="color:#666; font-size:13px; font-weight:bold;">预测溢价:</span>
                                     <span id="sb-target-prem-{code}" class="num-font" style="font-size: 14px; font-weight: bold;">-</span>
+                                </div>
+                                <div style="display: flex; align-items: center; gap: 8px;">
+                                    <span style="color:#666; font-size:13px; font-weight:bold;">平仓溢价率:</span>
+                                    <span id="sb-close-prem-{code}" class="num-font" style="font-size: 14px; font-weight: bold;">-</span>
                                 </div>
                             </div>
                         </div>
@@ -1924,6 +1946,99 @@ def generate(futures_data=None, ib_data=None):
             window.latestIbPrices = ''' + json.dumps(ib_night_prices, ensure_ascii=False) + r''';
             window.calibData = { "gold": ''' + str(gold_calibration) + r''', "oil": ''' + str(oil_calibration) + r''' };
             window.tradeApiBase = 'http://127.0.0.1:5000';
+            window.latestLofBidPrices = {};
+            window.latestLofAskPrices = {};
+
+            function getPositiveNumber(value) {
+                var n = parseFloat(value);
+                return n > 0 ? n : 0;
+            }
+
+            function getLofBidPrice(code) {
+                var cleanCode = String(code || '').split('.')[0].trim();
+                return getPositiveNumber(window.latestLofBidPrices[cleanCode]);
+            }
+
+            function updateLofOrderBookDisplay(code, bid, ask, bidSize, askSize) {
+                var bidEl = document.getElementById('sb-lof-bid-' + code);
+                var askEl = document.getElementById('sb-lof-ask-' + code);
+                var bidSizeEl = document.getElementById('sb-lof-bid-size-' + code);
+                var askSizeEl = document.getElementById('sb-lof-ask-size-' + code);
+                if (bidEl && bid > 0) bidEl.textContent = Number(bid).toFixed(3);
+                if (askEl && ask > 0) askEl.textContent = Number(ask).toFixed(3);
+                if (bidSizeEl) bidSizeEl.textContent = bidSize > 0 ? bidSize : '-';
+                if (askSizeEl) askSizeEl.textContent = askSize > 0 ? askSize : '-';
+            }
+
+            function rememberLofQuote(code, payload) {
+                var cleanCode = String(code || '').split('.')[0].trim();
+                if (!cleanCode || !payload) return;
+                var bid = getPositiveNumber(payload.bid_price || payload.bid || payload.bid_p1);
+                var ask = getPositiveNumber(payload.ask_price || payload.ask || payload.ask_p1 || payload.price);
+                var bidSize = getPositiveNumber(payload.bid_size || payload.bid_v1);
+                var askSize = getPositiveNumber(payload.ask_size || payload.ask_v1);
+                var ob = payload.order_book || payload.data || null;
+                if (!(bid > 0) && ob) bid = getPositiveNumber(ob.bid_p1 || ob.bid1_p || ob.bid_p || (Array.isArray(ob.bidPrice) ? ob.bidPrice[0] : 0));
+                if (!(ask > 0) && ob) ask = getPositiveNumber(ob.ask_p1 || ob.ask1_p || ob.ask_p || (Array.isArray(ob.askPrice) ? ob.askPrice[0] : 0));
+                if (!(bidSize > 0) && ob) bidSize = getPositiveNumber(ob.bid_v1 || ob.bid1_v || ob.bid_v || (Array.isArray(ob.bidVol) ? ob.bidVol[0] : 0));
+                if (!(askSize > 0) && ob) askSize = getPositiveNumber(ob.ask_v1 || ob.ask1_v || ob.ask_v || (Array.isArray(ob.askVol) ? ob.askVol[0] : 0));
+                if (bid > 0) window.latestLofBidPrices[cleanCode] = bid;
+                if (ask > 0) window.latestLofAskPrices[cleanCode] = ask;
+                updateLofOrderBookDisplay(cleanCode, bid, ask, bidSize, askSize);
+            }
+
+            function getEtfAskPrice(sym) {
+                var cleanSym = String(sym || '').toUpperCase().replace(/[^A-Z]/g, '');
+                if (!cleanSym) return 0;
+                if (window.latestIbPrices && window.latestIbPrices[cleanSym]) {
+                    var ask = getPositiveNumber(window.latestIbPrices[cleanSym].ask);
+                    if (ask > 0) return ask;
+                }
+                var askEls = document.querySelectorAll('[id^="sb-ib-ask-"]');
+                for (var i = 0; i < askEls.length; i++) {
+                    var id = askEls[i].id || '';
+                    var symInputId = id.replace('sb-ib-ask-', 'ib-trade-sym-');
+                    var symInput = document.getElementById(symInputId);
+                    if (symInput && String(symInput.value || '').toUpperCase() === cleanSym) {
+                        var domAsk = getPositiveNumber((askEls[i].textContent || '').match(/\d+(?:\.\d+)?/)?.[0]);
+                        if (domAsk > 0) return domAsk;
+                    }
+                }
+                return 0;
+            }
+
+            function normalizeFutureAskSymbol(sym) {
+                var s = String(sym || '').toUpperCase().replace(/[^A-Z]/g, '');
+                if (s === 'GC' || s === 'MGC') return 'MGC';
+                if (s === 'CL' || s === 'MCL') return 'MCL';
+                if (s === 'NQ' || s === 'MNQ') return 'MNQ';
+                if (s === 'ES' || s === 'MES') return 'MES';
+                return s;
+            }
+
+            function getFutureAskPrice(code, sym) {
+                var futureSym = normalizeFutureAskSymbol(sym);
+                if (futureSym && window.latestIbPrices && window.latestIbPrices[futureSym]) {
+                    var ask = getPositiveNumber(window.latestIbPrices[futureSym].ask);
+                    if (ask > 0) return ask;
+                }
+                var domAsk = getPositiveNumber((document.getElementById('sb-future-ask-' + code)?.textContent || '').match(/\d+(?:\.\d+)?/)?.[0]);
+                return domAsk > 0 ? domAsk : 0;
+            }
+
+            function renderClosePremium(elementId, code, closeVal) {
+                var el = document.getElementById(elementId);
+                if (!el) return;
+                var lofBidPrice = getLofBidPrice(code);
+                if (lofBidPrice > 0 && closeVal > 0) {
+                    var closePrem = (lofBidPrice / closeVal - 1) * 100;
+                    el.textContent = (closePrem >= 0 ? '+' : '') + closePrem.toFixed(2) + '%';
+                    el.style.color = closePrem >= 0 ? '#2e7d32' : '#d32f2f';
+                } else {
+                    el.textContent = '-';
+                    el.style.color = '';
+                }
+            }
 
             // WebSocket连接
             var socket = io();
@@ -1940,14 +2055,20 @@ def generate(futures_data=None, ib_data=None):
             
             socket.on('lof_price_update', function(data) {
                 if (!data || !data.code) return;
-                window.applyLofPriceUpdate(data.code, data.price);
+                window.applyLofPriceUpdate(data.code, data.price, data);
             });
             
             socket.on('lof_price_snapshot', function(data) {
                 if (!data || !data.prices) return;
                 Object.keys(data.prices).forEach(function(code) {
-                    window.applyLofPriceUpdate(code, data.prices[code]);
+                    window.applyLofPriceUpdate(code, data.prices[code], { bid_price: data.bid_prices ? data.bid_prices[code] : 0 });
                 });
+            });
+
+            socket.on('lof_order_book_update', function(data) {
+                if (!data || !data.code) return;
+                rememberLofQuote(data.code, data);
+                if (window.calcSandbox) window.calcSandbox(String(data.code).split('.')[0]);
             });
 
             // 接收期货价格更新
@@ -2585,6 +2706,11 @@ def generate(futures_data=None, ib_data=None):
                 
                 var reqSpot = (baseData.rateType === 'spot');
                 var fx = (reqSpot && window.latestExchangeRates && window.latestExchangeRates.spot) ? window.latestExchangeRates.spot : baseData.todayExchangeRate;
+                var closePremEl = document.getElementById('sb-close-prem-' + code);
+                if (closePremEl) {
+                    closePremEl.textContent = '-';
+                    closePremEl.style.color = '';
+                }
                 
                 if (!fx || isNaN(fx) || fx <= 0) {
                     var valEl = document.getElementById('sb-val-' + code);
@@ -2699,6 +2825,35 @@ def generate(futures_data=None, ib_data=None):
                         if (targetLightEl) targetLightEl.innerHTML = '';
                     }
                 }
+                if (closePremEl) {
+                    var closeWeightedChange = 0;
+                    var closeValidWeight = 0;
+                    baseData.hedgingPortfolio.forEach(function(h) {
+                        var sym = h.symbol;
+                        var baseSym = 'unknown';
+                        if (sym.includes('GLD')) baseSym = 'gld';
+                        else if (sym.includes('USO')) baseSym = 'uso';
+                        else if (sym.includes('XOP')) baseSym = 'xop';
+                        else if (sym.includes('XBI')) baseSym = 'xbi';
+                        else if (sym.includes('SLV')) baseSym = 'slv';
+                        else if (sym.includes('SPY')) baseSym = 'spy';
+                        else if (sym.includes('QQQ')) baseSym = 'qqq';
+
+                        var askPrice = getEtfAskPrice(baseSym);
+                        var basePrice = baseData.baseEtfPrices[sym];
+                        var weight = h.weight;
+                        if (basePrice > 0 && askPrice > 0 && weight > 0) {
+                            closeWeightedChange += (askPrice / basePrice) * weight;
+                            closeValidWeight += weight;
+                        }
+                    });
+                    if (closeValidWeight > 0) {
+                        if (closeValidWeight < 0.98 || closeValidWeight > 1.02) closeWeightedChange = closeWeightedChange / closeValidWeight;
+                        var closeFxChange = fx / baseData.baseExchangeRate;
+                        var closeVal = baseData.baseNav * (1 + baseData.position * (closeWeightedChange * closeFxChange - 1));
+                        renderClosePremium('sb-close-prem-' + code, code, closeVal);
+                    }
+                }
             };
             
             window.calcFutureSandbox = function(code) {
@@ -2714,6 +2869,11 @@ def generate(futures_data=None, ib_data=None):
                     
                     var fxText = document.getElementById('sb-exchange-rate-' + code)?.textContent || '';
                     var fx = parseFloat(fxText);
+                    var futClosePremEl = document.getElementById('sb-fut-close-prem-' + code);
+                    if (futClosePremEl) {
+                        futClosePremEl.textContent = '-';
+                        futClosePremEl.style.color = '';
+                    }
                     if (!fx || isNaN(fx)) {
                         var futValEl = document.getElementById('sb-fut-val-' + code);
                         var futPremEl = document.getElementById('sb-fut-prem-' + code);
@@ -2781,6 +2941,25 @@ def generate(futures_data=None, ib_data=None):
                             if (targetLightEl) targetLightEl.innerHTML = '';
                         }
                     }
+                    if (futClosePremEl) {
+                        var closeFutPrice = getFutureAskPrice(code, baseData.futureSymbol);
+                        var closeEquivEtf = (calib > 0 && closeFutPrice > 0) ? closeFutPrice / calib : 0;
+                        var closeWeightedChange = 0;
+                        if (validWeight > 0) {
+                            baseData.hedgingPortfolio.forEach(function(h) {
+                                if (h.weight >= 0.02 && !h.symbol.includes('SLV')) {
+                                    var basePrice = baseData.baseEtfPrices[h.symbol];
+                                    if (basePrice > 0 && closeEquivEtf > 0) {
+                                        closeWeightedChange += (closeEquivEtf / basePrice) * (h.weight / validWeight);
+                                    }
+                                }
+                            });
+                        } else if (closeEquivEtf > 0) {
+                            closeWeightedChange = closeEquivEtf / 100;
+                        }
+                        var closeVal = closeWeightedChange > 0 ? baseData.baseNav * (1 + baseData.position * (closeWeightedChange * fxChange - 1)) : 0;
+                        renderClosePremium('sb-fut-close-prem-' + code, code, closeVal);
+                    }
                 } catch (e) {
                     console.error('计算期货校准估值失败:', e);
                 }
@@ -2803,6 +2982,11 @@ def generate(futures_data=None, ib_data=None):
                     
                     var reqSpot = (baseData.rateType === 'spot');
                     var fx = (reqSpot && window.latestExchangeRates && window.latestExchangeRates.spot) ? window.latestExchangeRates.spot : baseData.todayExchangeRate;
+                    var pureClosePremEl = document.getElementById('sb-pure-close-prem-' + code);
+                    if (pureClosePremEl) {
+                        pureClosePremEl.textContent = '-';
+                        pureClosePremEl.style.color = '';
+                    }
                     
                     if (!fx || isNaN(fx) || fx <= 0) {
                         var pureValEl = document.getElementById('sb-pure-val-' + code);
@@ -2853,6 +3037,11 @@ def generate(futures_data=None, ib_data=None):
                                 if (targetLightEl) targetLightEl.innerHTML = '';
                             }
                         }
+                        if (pureClosePremEl) {
+                            var closeFutPrice = getFutureAskPrice(code, baseData.futureSymbol);
+                            var closeVal = closeFutPrice > 0 ? baseData.baseNav * (1.0 - baseData.position) + (closeFutPrice * fx) / derivedFutureHedge : 0;
+                            renderClosePremium('sb-pure-close-prem-' + code, code, closeVal);
+                        }
                     } else {
                         var exactChange = 0;
                         if (baseData.baseFuturePrice > 0) exactChange = futPrice / baseData.baseFuturePrice;
@@ -2877,6 +3066,12 @@ def generate(futures_data=None, ib_data=None):
                                     targetPremEl.style.color = '';
                                     if (targetLightEl) targetLightEl.innerHTML = '';
                                 }
+                            }
+                            if (pureClosePremEl) {
+                                var closeFutPrice = getFutureAskPrice(code, baseData.futureSymbol);
+                                var closeExactChange = baseData.baseFuturePrice > 0 && closeFutPrice > 0 ? closeFutPrice / baseData.baseFuturePrice : 0;
+                                var closeVal = closeExactChange > 0 ? baseData.baseNav * (1 + baseData.position * (closeExactChange * fxChange - 1)) : 0;
+                                renderClosePremium('sb-pure-close-prem-' + code, code, closeVal);
                             }
                         } else {
                             var pureValEl = document.getElementById('sb-pure-val-' + code);
@@ -3423,10 +3618,11 @@ def generate(futures_data=None, ib_data=None):
                 });
             }
             
-            function applyLofPriceUpdate(code, rawPrice) {
+            function applyLofPriceUpdate(code, rawPrice, rawQuote) {
                 var cleanCode = String(code || '').split('.')[0].trim();
                 var price = parseFloat(rawPrice);
                 if (!cleanCode || !(price > 0)) return;
+                rememberLofQuote(cleanCode, rawQuote);
                 
                 var afterClose = isAfterMarketClose();
                 if (!isTradingDay() || afterClose) {
@@ -3508,7 +3704,7 @@ def generate(futures_data=None, ib_data=None):
                                 var code = codeCell.textContent.trim().split('.')[0];
                                 
                                 if (data[code] && data[code].price > 0) {
-                                    window.applyLofPriceUpdate(code, data[code].price);
+                                    window.applyLofPriceUpdate(code, data[code].price, data[code]);
                                 } else {
                                     if (!tradingDay) {
                                         updateRealtimePriceCells(code, '非交易日');
