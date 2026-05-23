@@ -1066,13 +1066,13 @@ def generate_fund_data(fund, data_processor, html_generator, futures_data, futur
                                     <span id="sb-etf-qty-{code}-etf" class="num-font" style="font-size: 13px; color: #1565c0; font-weight:bold; min-width:30px; text-align:center; display:inline-block;">?</span>
                                     <span style="font-size:11px; color:#333;">股</span>
                                 </div>
-                                <div style="display: flex; justify-content: space-between; font-size:10px; color:#666; margin-top: 2px;">
-                                    <span>单位对冲值(k): <span id="sb-debug-hedge-{code}-etf" class="num-font" style="color:#1565c0;">-</span></span>
-                                    <span>目标底层敞口: <span id="sb-debug-exposure-{code}-etf" class="num-font" style="color:#e65100;">-</span></span>
+                                <div style="display: flex; justify-content: space-between; gap: 10px; flex-wrap: wrap; font-size:10px; color:#555; margin-top: 2px; line-height: 1.35;">
+                                    <span style="white-space: nowrap;">单位对冲值(k): <span id="sb-debug-hedge-{code}-etf" class="num-font" style="color:#1565c0; font-weight:bold;">-</span></span>
+                                    <span style="white-space: nowrap;">目标底层敞口: <span id="sb-debug-exposure-{code}-etf" class="num-font" style="color:#e65100; font-weight:bold;">-</span></span>
                                 </div>
                                 <!-- 锚点ETF数量显示 -->
-                                <div style="display: flex; flex-wrap: wrap; gap: 8px; font-size:10px; color:#666; margin-top: 4px; justify-content: center;">
-                                    <span id="sb-anchor-etfs-{code}-etf" style="width: 100%; text-align: center;">锚点ETF数量: -</span>
+                                <div style="display: flex; flex-wrap: wrap; gap: 8px; font-size:10px; color:#555; margin-top: 4px; justify-content: center; line-height: 1.35;">
+                                    <span id="sb-anchor-etfs-{code}-etf" style="width: 100%; text-align: center; font-weight:bold;">锚点ETF数量: -</span>
                                 </div>
                             </div>
             """
@@ -1089,9 +1089,13 @@ def generate_fund_data(fund, data_processor, html_generator, futures_data, futur
                                     <span id="sb-lof-qty-{code}-future" class="num-font" style="font-size: 13px; color: #d32f2f; font-weight:bold; min-width:40px; text-align:center; display:inline-block;">?</span>
                                     <span style="font-size:11px; color:#333;">股</span>
                                 </div>
-                                <div style="display: flex; justify-content: space-between; font-size:10px; color:#666; margin-top: 2px;">
-                                    <span>单位对冲值(k): <span id="sb-debug-hedge-{code}-future" class="num-font" style="color:#1565c0;">-</span></span>
-                                    <span>目标底层敞口: <span id="sb-debug-exposure-{code}-future" class="num-font" style="color:#e65100;">-</span></span>
+                                <div style="display: flex; justify-content: space-between; gap: 10px; flex-wrap: wrap; font-size:10px; color:#555; margin-top: 2px; line-height: 1.35;">
+                                    <span style="white-space: nowrap;">单位对冲值(k): <span id="sb-debug-hedge-{code}-future" class="num-font" style="color:#1565c0; font-weight:bold;">-</span></span>
+                                    <span style="white-space: nowrap;">目标底层敞口: <span id="sb-debug-exposure-{code}-future" class="num-font" style="color:#e65100; font-weight:bold;">-</span></span>
+                                </div>
+                                <!-- 锚点ETF数量显示 -->
+                                <div style="display: flex; flex-wrap: wrap; gap: 8px; font-size:10px; color:#555; margin-top: 4px; justify-content: center; line-height: 1.35;">
+                                    <span id="sb-anchor-etfs-{code}-future" style="width: 100%; text-align: center; font-weight:bold;">锚点ETF数量: -</span>
                                 </div>
                             </div>
                             
@@ -1105,9 +1109,13 @@ def generate_fund_data(fund, data_processor, html_generator, futures_data, futur
                                     <span id="sb-lof-qty-{code}-pure_future" class="num-font" style="font-size: 13px; color: #d32f2f; font-weight:bold; min-width:40px; text-align:center; display:inline-block;">?</span>
                                     <span style="font-size:11px; color:#333;">股</span>
                                 </div>
-                                <div style="display: flex; justify-content: space-between; font-size:10px; color:#666; margin-top: 2px;">
-                                    <span>单位对冲值(k): <span id="sb-debug-hedge-{code}-pure_future" class="num-font" style="color:#1565c0;">-</span></span>
-                                    <span>目标底层敞口: <span id="sb-debug-exposure-{code}-pure_future" class="num-font" style="color:#e65100;">-</span></span>
+                                <div style="display: flex; justify-content: space-between; gap: 10px; flex-wrap: wrap; font-size:10px; color:#555; margin-top: 2px; line-height: 1.35;">
+                                    <span style="white-space: nowrap;">单位对冲值(k): <span id="sb-debug-hedge-{code}-pure_future" class="num-font" style="color:#1565c0; font-weight:bold;">-</span></span>
+                                    <span style="white-space: nowrap;">目标底层敞口: <span id="sb-debug-exposure-{code}-pure_future" class="num-font" style="color:#e65100; font-weight:bold;">-</span></span>
+                                </div>
+                                <!-- 锚点ETF数量显示 -->
+                                <div style="display: flex; flex-wrap: wrap; gap: 8px; font-size:10px; color:#555; margin-top: 4px; justify-content: center; line-height: 1.35;">
+                                    <span id="sb-anchor-etfs-{code}-pure_future" style="width: 100%; text-align: center; font-weight:bold;">锚点ETF数量: -</span>
                                 </div>
                             </div>
                 """
@@ -1123,8 +1131,8 @@ def generate_fund_data(fund, data_processor, html_generator, futures_data, futur
                             <!-- A股 LOF 实时盘口 -->
                             <div style="display: inline-flex; gap: 8px; font-size: 12px; background: #fff7ed; padding: 5px 10px; border-radius: 4px; border: 1px solid #fed7aa; justify-content: flex-start; box-sizing: border-box;">
                                 <span style="color:#666;">📊 <b style="color:#c2410c;">A股LOF</b> 实时盘口:</span>
-                                <span style="color:#2e7d32; font-weight:bold; cursor:pointer; padding: 0 4px; border-radius: 3px;" onclick="document.getElementById('trade-price-{code}-etf').value = document.getElementById('sb-lof-bid-{code}').innerText" title="点击将买一价填入限价框" onmouseover="this.style.backgroundColor='#e8f5e9'" onmouseout="this.style.backgroundColor='transparent'">买一(Bid): <span id="sb-lof-bid-{code}">未能读到实时数据</span><span id="sb-lof-bid-size-{code}" style="color:#666; font-size:10px; margin-left:4px;">-</span></span>
-                                <span style="color:#d32f2f; font-weight:bold; cursor:pointer; padding: 0 4px; border-radius: 3px;" onclick="document.getElementById('trade-price-{code}-etf').value = document.getElementById('sb-lof-ask-{code}').innerText" title="点击将卖一价填入限价框" onmouseover="this.style.backgroundColor='#ffebee'" onmouseout="this.style.backgroundColor='transparent'">卖一(Ask): <span id="sb-lof-ask-{code}">未能读到实时数据</span><span id="sb-lof-ask-size-{code}" style="color:#666; font-size:10px; margin-left:4px;">-</span></span>
+                                <span style="color:#2e7d32; font-weight:bold; cursor:pointer; padding: 0 4px; border-radius: 3px;" onclick="document.getElementById('trade-price-{code}-etf').value = document.getElementById('sb-lof-bid-{code}').innerText" title="点击将买一价填入限价框" onmouseover="this.style.backgroundColor='#e8f5e9'" onmouseout="this.style.backgroundColor='transparent'">买一(Bid): <span id="sb-lof-bid-{code}">未能读到实时数据</span><span style="color:#666; font-size:10px; margin-left:4px;">量:</span><span id="sb-lof-bid-size-{code}" style="color:#666; font-size:10px; margin-left:2px;">-</span></span>
+                                <span style="color:#d32f2f; font-weight:bold; cursor:pointer; padding: 0 4px; border-radius: 3px;" onclick="document.getElementById('trade-price-{code}-etf').value = document.getElementById('sb-lof-ask-{code}').innerText" title="点击将卖一价填入限价框" onmouseover="this.style.backgroundColor='#ffebee'" onmouseout="this.style.backgroundColor='transparent'">卖一(Ask): <span id="sb-lof-ask-{code}">未能读到实时数据</span><span style="color:#666; font-size:10px; margin-left:4px;">量:</span><span id="sb-lof-ask-size-{code}" style="color:#666; font-size:10px; margin-left:2px;">-</span></span>
                                 <span style="color:#999; font-size: 10px;">(点击填入)</span>
                             </div>
             """
@@ -1135,8 +1143,8 @@ def generate_fund_data(fund, data_processor, html_generator, futures_data, futur
                             <!-- 实时盘口区-1：ETF实时盘口 ({us_sym}) -->
                             <div style="display: inline-flex; gap: 8px; font-size: 12px; background: var(--theme-etf-bg); padding: 5px 10px; border-radius: 4px; border: 1px solid var(--theme-etf-border); justify-content: flex-start; box-sizing: border-box;">
                                 <span style="color:#666;">📊 <b style="color:var(--theme-etf-text);">{us_sym}</b> 实时盘口:</span>
-                                <span style="color:#2e7d32; font-weight:bold; cursor:pointer; padding: 0 4px; border-radius: 3px;" onclick="document.getElementById('ib-trade-price-{code}-{suffix}').value = document.getElementById('sb-ib-bid-{code}-{suffix}').innerText" title="点击将买一价填入限价框" onmouseover="this.style.backgroundColor='#e8f5e9'" onmouseout="this.style.backgroundColor='transparent'">买一(Bid): <span id="sb-ib-bid-{code}-{suffix}">未能读到实时数据</span><span id="sb-ib-bid-size-{code}-{suffix}" style="color:#666; font-size:10px; margin-left:4px;">-</span></span>
-                                <span style="color:#d32f2f; font-weight:bold; cursor:pointer; padding: 0 4px; border-radius: 3px;" onclick="document.getElementById('ib-trade-price-{code}-{suffix}').value = document.getElementById('sb-ib-ask-{code}-{suffix}').innerText" title="点击将卖一价填入限价框" onmouseover="this.style.backgroundColor='#ffebee'" onmouseout="this.style.backgroundColor='transparent'">卖一(Ask): <span id="sb-ib-ask-{code}-{suffix}">未能读到实时数据</span><span id="sb-ib-ask-size-{code}-{suffix}" style="color:#666; font-size:10px; margin-left:4px;">-</span></span>
+                                <span style="color:#2e7d32; font-weight:bold; cursor:pointer; padding: 0 4px; border-radius: 3px;" onclick="document.getElementById('ib-trade-price-{code}-{suffix}').value = document.getElementById('sb-ib-bid-{code}-{suffix}').innerText" title="点击将买一价填入限价框" onmouseover="this.style.backgroundColor='#e8f5e9'" onmouseout="this.style.backgroundColor='transparent'">买一(Bid): <span id="sb-ib-bid-{code}-{suffix}">未能读到实时数据</span><span style="color:#666; font-size:10px; margin-left:4px;">量:</span><span id="sb-ib-bid-size-{code}-{suffix}" style="color:#666; font-size:10px; margin-left:2px;">-</span></span>
+                                <span style="color:#d32f2f; font-weight:bold; cursor:pointer; padding: 0 4px; border-radius: 3px;" onclick="document.getElementById('ib-trade-price-{code}-{suffix}').value = document.getElementById('sb-ib-ask-{code}-{suffix}').innerText" title="点击将卖一价填入限价框" onmouseover="this.style.backgroundColor='#ffebee'" onmouseout="this.style.backgroundColor='transparent'">卖一(Ask): <span id="sb-ib-ask-{code}-{suffix}">未能读到实时数据</span><span style="color:#666; font-size:10px; margin-left:4px;">量:</span><span id="sb-ib-ask-size-{code}-{suffix}" style="color:#666; font-size:10px; margin-left:2px;">-</span></span>
                                 <span style="color:#999; font-size: 10px;">(点击填入)</span>
                             </div>
                 """
@@ -1169,7 +1177,7 @@ def generate_fund_data(fund, data_processor, html_generator, futures_data, futur
                                     <span style="color:#666; font-size: 11px;">数量:</span>
                                     <input type="number" id="trade-vol-{code}-etf" value="100" step="100" oninput="this.dataset.manual='true'" style="width:60px; padding:2px; border:1px solid #ccc; border-radius:4px; font-family:Consolas; font-weight:bold; font-size:11px;">
                                     <span style="color:#666; font-size: 11px;">限价:</span>
-                                    <input type="number" id="trade-price-{code}-etf" step="0.001" style="width:60px; padding:2px; border:1px solid #ccc; border-radius:4px; font-family:Consolas; font-weight:bold; color:#d32f2f; font-size:11px;">
+                                    <input type="number" id="trade-price-{code}-etf" step="0.001" oninput="this.dataset.manual='true'" style="width:60px; padding:2px; border:1px solid #ccc; border-radius:4px; font-family:Consolas; font-weight:bold; color:#d32f2f; font-size:11px;">
                                 </div>
                                 <span id="trade-msg-{code}-etf" style="font-size:10px; font-weight:bold; height: 11px;"></span>
                             </div>
@@ -1186,7 +1194,7 @@ def generate_fund_data(fund, data_processor, html_generator, futures_data, futur
                                     <span style="color:#666; font-size: 11px;">数量:</span>
                                     <input type="number" id="ib-trade-vol-{code}-{suffix}" value="10" step="1" oninput="this.dataset.manual='true'" style="width:60px; padding:2px; border:1px solid #ccc; border-radius:4px; font-family:Consolas; font-weight:bold; font-size:11px;">
                                     <span style="color:#666; font-size: 11px;">限价:</span>
-                                    <input type="number" id="ib-trade-price-{code}-{suffix}" step="0.01" style="width:80px; padding:2px; border:1px solid #ccc; border-radius:4px; font-family:Consolas; font-weight:bold; color:#1565c0; font-size:11px;">
+                                    <input type="number" id="ib-trade-price-{code}-{suffix}" step="0.01" oninput="this.dataset.manual='true'" style="width:80px; padding:2px; border:1px solid #ccc; border-radius:4px; font-family:Consolas; font-weight:bold; color:#1565c0; font-size:11px;">
                                 </div>
                                 <span id="ib-trade-msg-{code}-{suffix}" style="font-size:10px; font-weight:bold; height: 11px;"></span>
                             </div>
@@ -1201,7 +1209,7 @@ def generate_fund_data(fund, data_processor, html_generator, futures_data, futur
                                     <span style="color:#666; font-size: 11px;">数量:</span>
                                     <input type="number" id="ib-future-vol-{code}" value="1" step="1" oninput="this.dataset.manual='true'" style="width:60px; padding:2px; border:1px solid #ccc; border-radius:4px; font-family:Consolas; font-weight:bold; font-size:11px;">
                                     <span style="color:#666; font-size: 11px;">限价:</span>
-                                    <input type="number" id="ib-future-price-{code}" step="0.01" style="width:80px; padding:2px; border:1px solid #ccc; border-radius:4px; font-family:Consolas; font-weight:bold; color:#e65100; font-size:11px;">
+                                    <input type="number" id="ib-future-price-{code}" step="0.01" oninput="this.dataset.manual='true'" style="width:80px; padding:2px; border:1px solid #ccc; border-radius:4px; font-family:Consolas; font-weight:bold; color:#e65100; font-size:11px;">
                                 </div>
                                 <span id="ib-future-msg-{code}" style="font-size:10px; font-weight:bold; height: 11px;"></span>
                             </div>
@@ -1959,6 +1967,89 @@ def generate(futures_data=None, ib_data=None):
                 return getPositiveNumber(window.latestLofBidPrices[cleanCode]);
             }
 
+            function getLofAskPrice(code) {
+                var cleanCode = String(code || '').split('.')[0].trim();
+                return getPositiveNumber(window.latestLofAskPrices[cleanCode]);
+            }
+
+            function setDefaultPriceInput(inputEl, price, decimals) {
+                if (!inputEl || inputEl.dataset.manual) return;
+                price = getPositiveNumber(price);
+                if (!(price > 0)) return;
+                decimals = decimals === undefined ? 2 : decimals;
+                inputEl.value = price.toFixed(decimals);
+            }
+
+            function getDomPriceById(id) {
+                var el = document.getElementById(id);
+                if (!el) return 0;
+                var raw = el.value || el.textContent || '';
+                var match = String(raw).match(/\d+(?:\.\d+)?/);
+                return match ? getPositiveNumber(match[0]) : 0;
+            }
+
+            function getDefaultLofLimitPrice(code) {
+                return getLofAskPrice(code)
+                    || getDomPriceById('sb-lof-ask-' + code)
+                    || getDomPriceById('realtime-price-' + code)
+                    || getDomPriceById('sb-target-price-' + code)
+                    || getLofBidPrice(code)
+                    || getDomPriceById('sb-lof-bid-' + code);
+            }
+
+            function getDefaultIbLimitPrice(sym) {
+                var cleanSym = String(sym || '').toUpperCase();
+                if (window.latestIbPrices && window.latestIbPrices[cleanSym]) {
+                    var p = window.latestIbPrices[cleanSym];
+                    return window.getIbAskValue(p) || window.getIbBidValue(p);
+                }
+                return getDomPriceById(cleanSym.toLowerCase() + '-price');
+            }
+
+            function getDefaultFutureLimitPrice(code) {
+                var baseData = window.fundBaseData && window.fundBaseData[code];
+                var sym = baseData ? String(baseData.futureSymbol || '').toUpperCase() : '';
+                var ibSym = normalizeFutureAskSymbol(sym);
+                if (ibSym && window.latestIbPrices && window.latestIbPrices[ibSym]) {
+                    var p = window.latestIbPrices[ibSym];
+                    return window.getIbAskValue(p) || window.getIbBidValue(p);
+                }
+                return getDomPriceById('sb-future-bid-' + code)
+                    || getDomPriceById('sb-future-ask-' + code)
+                    || getDomPriceById('sb-pure-fut-price-' + code)
+                    || getDomPriceById('sb-fut-price-' + code)
+                    || getDomPriceById(sym.toLowerCase() + '-price');
+            }
+
+            function formatOrderSize(size) {
+                var n = getPositiveNumber(size);
+                if (!(n > 0)) return '-';
+                if (n >= 1000) return Math.round(n).toLocaleString();
+                return String(n);
+            }
+
+            function fillDefaultTradePrices(code) {
+                setDefaultPriceInput(document.getElementById('trade-price-' + code + '-etf'), getDefaultLofLimitPrice(code), 3);
+
+                var suffixes = ['etf'];
+                var idx = 1;
+                while (document.getElementById('ib-trade-sym-' + code + '-etf_' + idx)) {
+                    suffixes.push('etf_' + idx);
+                    idx++;
+                }
+                suffixes.forEach(function(suffix) {
+                    var symEl = document.getElementById('ib-trade-sym-' + code + '-' + suffix);
+                    if (!symEl) return;
+                    setDefaultPriceInput(
+                        document.getElementById('ib-trade-price-' + code + '-' + suffix),
+                        getDefaultIbLimitPrice(symEl.value),
+                        2
+                    );
+                });
+
+                setDefaultPriceInput(document.getElementById('ib-future-price-' + code), getDefaultFutureLimitPrice(code), 2);
+            }
+
             function updateLofOrderBookDisplay(code, bid, ask, bidSize, askSize) {
                 var bidEl = document.getElementById('sb-lof-bid-' + code);
                 var askEl = document.getElementById('sb-lof-ask-' + code);
@@ -1966,8 +2057,9 @@ def generate(futures_data=None, ib_data=None):
                 var askSizeEl = document.getElementById('sb-lof-ask-size-' + code);
                 if (bidEl && bid > 0) bidEl.textContent = Number(bid).toFixed(3);
                 if (askEl && ask > 0) askEl.textContent = Number(ask).toFixed(3);
-                if (bidSizeEl) bidSizeEl.textContent = bidSize > 0 ? bidSize : '-';
-                if (askSizeEl) askSizeEl.textContent = askSize > 0 ? askSize : '-';
+                if (bidSizeEl) bidSizeEl.textContent = formatOrderSize(bidSize);
+                if (askSizeEl) askSizeEl.textContent = formatOrderSize(askSize);
+                fillDefaultTradePrices(code);
             }
 
             function rememberLofQuote(code, payload) {
@@ -1991,7 +2083,7 @@ def generate(futures_data=None, ib_data=None):
                 var cleanSym = String(sym || '').toUpperCase().replace(/[^A-Z]/g, '');
                 if (!cleanSym) return 0;
                 if (window.latestIbPrices && window.latestIbPrices[cleanSym]) {
-                    var ask = getPositiveNumber(window.latestIbPrices[cleanSym].ask);
+                    var ask = window.getIbAskValue(window.latestIbPrices[cleanSym]);
                     if (ask > 0) return ask;
                 }
                 var askEls = document.querySelectorAll('[id^="sb-ib-ask-"]');
@@ -2007,6 +2099,70 @@ def generate(futures_data=None, ib_data=None):
                 return 0;
             }
 
+            function syncIbEtfInputsFromLatest(changedSym) {
+                var cleanChanged = String(changedSym || '').toUpperCase();
+                Object.keys(window.fundBaseData || {}).forEach(function(code) {
+                    var inputs = document.querySelectorAll('.sandbox-input-' + code);
+                    inputs.forEach(function(inp) {
+                        var baseSym = String(inp.getAttribute('data-base') || '').toUpperCase();
+                        if (!baseSym || (cleanChanged && baseSym !== cleanChanged)) return;
+                        var p = window.latestIbPrices && window.latestIbPrices[baseSym];
+                        var bid = window.getIbBidValue ? window.getIbBidValue(p) : 0;
+                        var ask = window.getIbAskValue ? window.getIbAskValue(p) : 0;
+                        var price = bid || ask;
+                        if (price > 0 && document.activeElement !== inp) {
+                            inp.value = price.toFixed(2);
+                        }
+                    });
+                });
+            }
+
+            function refreshIbDrivenViews(changedSym) {
+                if (!window.latestIbPrices) return;
+                var symbols = ['GLD', 'USO', 'XOP', 'XBI', 'SLV', 'SPY', 'QQQ'];
+                symbols.forEach(function(sym) {
+                    var el = document.getElementById('ib-val-' + sym.toLowerCase());
+                    var bid = window.getIbBidValue ? window.getIbBidValue(window.latestIbPrices[sym]) : 0;
+                    if (el) el.textContent = bid > 0 ? bid.toFixed(2) : '-';
+                });
+
+                syncIbEtfInputsFromLatest(changedSym);
+
+                Object.keys(window.fundBaseData || {}).forEach(function(code) {
+                    var suffixes = ['etf'];
+                    var idx = 1;
+                    while (document.getElementById('ib-trade-sym-' + code + '-etf_' + idx)) {
+                        suffixes.push('etf_' + idx);
+                        idx++;
+                    }
+                    suffixes.forEach(function(suffix) {
+                        var symEl = document.getElementById('ib-trade-sym-' + code + '-' + suffix);
+                        if (!symEl) return;
+                        var sym = String(symEl.value || '').toUpperCase();
+                        if (changedSym && sym !== String(changedSym).toUpperCase()) return;
+                        var p = window.latestIbPrices[sym];
+                        if (!p) return;
+                        var bid = window.getIbBidValue ? window.getIbBidValue(p) : 0;
+                        var ask = window.getIbAskValue ? window.getIbAskValue(p) : 0;
+                        var bidEl = document.getElementById('sb-ib-bid-' + code + '-' + suffix);
+                        var askEl = document.getElementById('sb-ib-ask-' + code + '-' + suffix);
+                        var bidSizeEl = document.getElementById('sb-ib-bid-size-' + code + '-' + suffix);
+                        var askSizeEl = document.getElementById('sb-ib-ask-size-' + code + '-' + suffix);
+                        if (bidEl && bid > 0) bidEl.textContent = bid.toFixed(2);
+                        if (askEl && ask > 0) askEl.textContent = ask.toFixed(2);
+                        if (bidSizeEl) bidSizeEl.textContent = formatOrderSize(p.bid_size);
+                        if (askSizeEl) askSizeEl.textContent = formatOrderSize(p.ask_size);
+                        setDefaultPriceInput(document.getElementById('ib-trade-price-' + code + '-' + suffix), ask || bid, 2);
+                    });
+                    fillDefaultTradePrices(code);
+                    if (window.calcSandbox) window.calcSandbox(code);
+                    if (window.calcHedgeQty) window.calcHedgeQty(code, 'etf');
+                });
+
+                refreshFutureDrivenViews(changedSym);
+                if (window.calculateRealTimeValues) window.calculateRealTimeValues();
+            }
+
             function normalizeFutureAskSymbol(sym) {
                 var s = String(sym || '').toUpperCase().replace(/[^A-Z]/g, '');
                 if (s === 'GC' || s === 'MGC') return 'MGC';
@@ -2015,6 +2171,86 @@ def generate(futures_data=None, ib_data=None):
                 if (s === 'ES' || s === 'MES') return 'MES';
                 return s;
             }
+
+            function futureSymbolsMatch(left, right) {
+                return normalizeFutureAskSymbol(left) === normalizeFutureAskSymbol(right);
+            }
+
+            function getFutureDisplayPrice(sym) {
+                var s = normalizeFutureAskSymbol(sym);
+                if (!s) return 0;
+                if (window.latestIbPrices && window.latestIbPrices[s]) {
+                    var p = window.latestIbPrices[s];
+                    var ask = window.getIbAskValue ? window.getIbAskValue(p) : 0;
+                    var bid = window.getIbBidValue ? window.getIbBidValue(p) : 0;
+                    return ask || bid || getPositiveNumber(p.price) || getPositiveNumber(p.last);
+                }
+                if (s === 'MGC') return getDomPriceById('gc-price');
+                if (s === 'MCL') return getDomPriceById('cl-price');
+                if (s === 'MNQ') return getDomPriceById('nq-price');
+                if (s === 'MES') return getDomPriceById('es-price');
+                if (s === 'AG0') return getDomPriceById('ag0-price');
+                return getDomPriceById(s.toLowerCase() + '-price');
+            }
+
+            function getFutureBidForTable(sym) {
+                var s = normalizeFutureAskSymbol(sym);
+                var p = window.latestIbPrices && window.latestIbPrices[s];
+                var bid = window.getIbBidValue ? window.getIbBidValue(p) : 0;
+                return bid || getFutureDisplayPrice(s);
+            }
+
+            function refreshFuturesTableFromLatest() {
+                var gcPrice = getFutureDisplayPrice('MGC');
+                var clPrice = getFutureDisplayPrice('MCL');
+                var nqPrice = getFutureDisplayPrice('MNQ');
+                var esPrice = getFutureDisplayPrice('MES');
+                var nqBidPrice = getFutureBidForTable('MNQ');
+                var esBidPrice = getFutureBidForTable('MES');
+                window.lastKnownFutures = { GC: gcPrice, CL: clPrice, NQ: nqPrice, ES: esPrice, NQ_BID: nqBidPrice, ES_BID: esBidPrice };
+                if (window.updateFuturesTableColumns) {
+                    window.updateFuturesTableColumns(gcPrice, clPrice, nqPrice, esPrice, nqBidPrice, esBidPrice);
+                }
+            }
+
+            function refreshFutureDrivenViews(changedSym) {
+                var normalizedChanged = normalizeFutureAskSymbol(changedSym);
+                Object.keys(window.fundBaseData || {}).forEach(function(code) {
+                    var baseData = window.fundBaseData[code];
+                    var futureSym = baseData ? normalizeFutureAskSymbol(baseData.futureSymbol) : '';
+                    if (!futureSym || (normalizedChanged && !futureSymbolsMatch(futureSym, normalizedChanged))) return;
+
+                    var p = window.latestIbPrices && window.latestIbPrices[futureSym];
+                    var bid = window.getIbBidValue ? window.getIbBidValue(p) : 0;
+                    var ask = window.getIbAskValue ? window.getIbAskValue(p) : 0;
+                    var price = ask || bid || getFutureDisplayPrice(futureSym);
+
+                    var bidEl = document.getElementById('sb-future-bid-' + code);
+                    var askEl = document.getElementById('sb-future-ask-' + code);
+                    var bidSizeEl = document.getElementById('sb-future-bid-size-' + code);
+                    var askSizeEl = document.getElementById('sb-future-ask-size-' + code);
+                    if (bidEl && bid > 0) bidEl.textContent = bid.toFixed(2);
+                    if (askEl && ask > 0) askEl.textContent = ask.toFixed(2);
+                    if (bidSizeEl && p) bidSizeEl.textContent = formatOrderSize(p.bid_size);
+                    if (askSizeEl && p) askSizeEl.textContent = formatOrderSize(p.ask_size);
+
+                    ['sb-fut-price-', 'sb-pure-fut-price-'].forEach(function(prefix) {
+                        var input = document.getElementById(prefix + code);
+                        if (input && price > 0 && document.activeElement !== input) input.value = price.toFixed(2);
+                    });
+                    setDefaultPriceInput(document.getElementById('ib-future-price-' + code), ask || bid || price, 2);
+                    fillDefaultTradePrices(code);
+
+                    if (window.calcFutureSandbox) window.calcFutureSandbox(code);
+                    if (window.calcPureFutureSandbox) window.calcPureFutureSandbox(code);
+                    if (window.calcHedgeQty) {
+                        window.calcHedgeQty(code, 'future');
+                        window.calcHedgeQty(code, 'pure_future');
+                    }
+                });
+                refreshFuturesTableFromLatest();
+            }
+            window.refreshFutureDrivenViews = refreshFutureDrivenViews;
 
             function getFutureAskPrice(code, sym) {
                 var futureSym = normalizeFutureAskSymbol(sym);
@@ -2061,14 +2297,60 @@ def generate(futures_data=None, ib_data=None):
             socket.on('lof_price_snapshot', function(data) {
                 if (!data || !data.prices) return;
                 Object.keys(data.prices).forEach(function(code) {
-                    window.applyLofPriceUpdate(code, data.prices[code], { bid_price: data.bid_prices ? data.bid_prices[code] : 0 });
+                    window.applyLofPriceUpdate(code, data.prices[code], {
+                        bid_price: data.bid_prices ? data.bid_prices[code] : 0,
+                        ask_price: data.ask_prices ? data.ask_prices[code] : 0,
+                        bid_size: data.bid_sizes ? data.bid_sizes[code] : 0,
+                        ask_size: data.ask_sizes ? data.ask_sizes[code] : 0,
+                        order_book: data.order_books ? data.order_books[code] : null
+                    }, { deferRefresh: true });
                 });
+                refreshAfterLofPriceUpdate();
             });
 
             socket.on('lof_order_book_update', function(data) {
                 if (!data || !data.code) return;
                 rememberLofQuote(data.code, data);
-                if (window.calcSandbox) window.calcSandbox(String(data.code).split('.')[0]);
+                var cleanCode = normalizeLofCode(data.code);
+                if (window.calcSandbox) window.calcSandbox(cleanCode);
+                if (window.calcFutureSandbox) window.calcFutureSandbox(cleanCode);
+                if (window.calcPureFutureSandbox) window.calcPureFutureSandbox(cleanCode);
+                if (window.calcHedgeQty) {
+                    window.calcHedgeQty(cleanCode, 'etf');
+                    window.calcHedgeQty(cleanCode, 'future');
+                    window.calcHedgeQty(cleanCode, 'pure_future');
+                }
+                refreshAfterLofPriceUpdate();
+            });
+
+            socket.on('ib_price_snapshot', function(data) {
+                if (!data || !data.prices) return;
+                window.latestIbPrices = Object.assign({}, window.latestIbPrices || {}, data.prices);
+                refreshIbDrivenViews();
+            });
+
+            socket.on('ib_price_update', function(data) {
+                if (!data) return;
+                if (data.prices) {
+                    window.latestIbPrices = Object.assign({}, window.latestIbPrices || {}, data.prices);
+                    refreshIbDrivenViews(data.symbol);
+                    return;
+                }
+                var sym = String(data.symbol || '').toUpperCase();
+                if (!sym) return;
+                window.latestIbPrices = window.latestIbPrices || {};
+                window.latestIbPrices[sym] = window.latestIbPrices[sym] || {};
+                if (data.price > 0) {
+                    if (data.tickType === 1 || data.tickType === 66) window.latestIbPrices[sym].bid = data.price;
+                    else if (data.tickType === 2 || data.tickType === 67) window.latestIbPrices[sym].ask = data.price;
+                    else if (data.tickType === 4 || data.tickType === 68) window.latestIbPrices[sym].last = data.price;
+                    window.latestIbPrices[sym].price = data.price;
+                }
+                if (data.size !== undefined && data.size !== null) {
+                    if (data.tickType === 0 || data.tickType === 69) window.latestIbPrices[sym].bid_size = data.size;
+                    else if (data.tickType === 3 || data.tickType === 70) window.latestIbPrices[sym].ask_size = data.size;
+                }
+                refreshIbDrivenViews(sym);
             });
 
             // 接收期货价格更新
@@ -2102,8 +2384,9 @@ def generate(futures_data=None, ib_data=None):
                     }
                 }
                 
+                refreshFutureDrivenViews(data.symbol);
                 // 触发估值计算
-                updateFuturesData();
+                if (window.calculateRealTimeValues) window.calculateRealTimeValues();
             });
 
             // 接收期货价格快照
@@ -2125,10 +2408,11 @@ def generate(futures_data=None, ib_data=None):
                             clPriceElement.textContent = clSnapshotPrice.toFixed(2);
                         }
                     }
-                    if (data.prices.AG) {
+                    var agSnapshotPrice = data.prices.AG0 || data.prices.AG;
+                    if (agSnapshotPrice) {
                         var agPriceElement = document.querySelector('#ag0-price');
                         if (agPriceElement) {
-                            agPriceElement.textContent = data.prices.AG.toFixed(2);
+                            agPriceElement.textContent = agSnapshotPrice.toFixed(2);
                         }
                     }
                     var nqSnapshotPrice = data.prices.MNQ || data.prices.NQ;
@@ -2145,6 +2429,10 @@ def generate(futures_data=None, ib_data=None):
                             esPriceElement.textContent = esSnapshotPrice.toFixed(2);
                         }
                     }
+                    ['MGC', 'MCL', 'MNQ', 'MES', 'AG0'].forEach(function(sym) {
+                        refreshFutureDrivenViews(sym);
+                    });
+                    if (window.calculateRealTimeValues) window.calculateRealTimeValues();
                 }
             });
 
@@ -2164,6 +2452,12 @@ def generate(futures_data=None, ib_data=None):
                     if (v > 0) return v;
                 }
                 return 0;
+            };
+
+            window.getIbAskValue = function(priceObj) {
+                if (!priceObj) return 0;
+                var v = parseFloat(priceObj.ask);
+                return v > 0 ? v : 0;
             };
 
             window.normalizeEtfSymbol = function(symbol) {
@@ -2495,18 +2789,7 @@ def generate(futures_data=None, ib_data=None):
                 // }
                 
                 // 5. 设置交易价格
-                if (livePriceEl) {
-                    var lpText = livePriceEl.textContent;
-                    var lpMatch = lpText.match(/[\d.]+/);
-                    if (lpMatch) {
-                        var qmtPriceInput = document.getElementById('trade-price-' + code + '-etf');
-                        if (qmtPriceInput) qmtPriceInput.value = parseFloat(lpMatch[0]);
-                        var futQmtPriceInput = document.getElementById('trade-price-' + code + '-future');
-                        if (futQmtPriceInput) futQmtPriceInput.value = parseFloat(lpMatch[0]);
-                        var pureQmtPriceInput = document.getElementById('trade-price-' + code + '-pure_future');
-                        if (pureQmtPriceInput) pureQmtPriceInput.value = parseFloat(lpMatch[0]);
-                    }
-                }
+                setDefaultPriceInput(document.getElementById('trade-price-' + code + '-etf'), getDefaultLofLimitPrice(code), 3);
                 
                 // 设置期货校准和纯期货估值的目标价格
                 if (targetPrice > 0) {
@@ -2534,15 +2817,19 @@ def generate(futures_data=None, ib_data=None):
                         
                         if (window.latestIbPrices && window.latestIbPrices[defaultSym]) {
                             var p = window.latestIbPrices[defaultSym];
-                            if (bidEl && p.bid) bidEl.textContent = p.bid.toFixed(2);
-                            if (askEl && p.ask) askEl.textContent = p.ask.toFixed(2);
-                            if (ibPriceEl && p.bid) ibPriceEl.value = p.bid.toFixed(2);
+                            var bidValue = window.getIbBidValue(p);
+                            var askValue = window.getIbAskValue(p);
+                            if (bidEl && bidValue > 0) bidEl.textContent = bidValue.toFixed(2);
+                            if (askEl && askValue > 0) askEl.textContent = askValue.toFixed(2);
+                            setDefaultPriceInput(ibPriceEl, askValue || bidValue, 2);
                         } else {
                             var refPriceEl = document.getElementById(defaultSym.toLowerCase() + '-price');
-                            if (refPriceEl && ibPriceEl) ibPriceEl.value = refPriceEl.value || refPriceEl.textContent;
+                            setDefaultPriceInput(ibPriceEl, refPriceEl ? (refPriceEl.value || refPriceEl.textContent) : 0, 2);
                         }
                     }
                 });
+                setDefaultPriceInput(document.getElementById('ib-future-price-' + code), getDefaultFutureLimitPrice(code), 2);
+                fillDefaultTradePrices(code);
                 
                 // 7. 计算三套对冲数量
                 window.calcHedgeQty(code, 'etf');
@@ -2555,32 +2842,50 @@ def generate(futures_data=None, ib_data=None):
                 var baseData = window.fundBaseData[code];
                 if (!baseData) return;
                 
+                if (stype === 'future' || stype === 'pure_future') isReverse = true;
+
                 var capitalInput = document.getElementById('sb-target-capital-' + code + '-' + stype);
+                var futuresLotsInput = document.getElementById('sb-target-futures-lots-' + code + '-' + stype);
                 var capitalA = capitalInput ? parseFloat(capitalInput.value) || 0 : 0;
+                var futuresLots = futuresLotsInput ? parseInt(futuresLotsInput.value) || 0 : 0;
                 
                 // 直接从 realtime-price-{code} 读取，更可靠
                 var lofLivePriceStr = getLofRealtimePriceText(code);
                 var lofLiveMatch = lofLivePriceStr ? lofLivePriceStr.match(/[\d.]+/) : null;
                 var lofRealtimePrice = lofLiveMatch ? parseFloat(lofLiveMatch[0]) : 0;
                 
-                // 优先使用数据库里算出来的无坚不摧的物理兑换比
-                var hedgeValue = baseData.baseHedgeValue;
-                // 如果库里没读到，降级用近似估算兜底
-                if (!hedgeValue || hedgeValue <= 0) {
-                    if (stype === 'etf') hedgeValue = baseData.etfHedgeValue;
-                    else if (stype === 'future' || stype === 'pure_future') hedgeValue = baseData.futHedgeValue;
-                }
-                
                 var lofQtyEl = document.getElementById('sb-lof-qty-' + code + '-' + stype);
                 var etfQtyEl = document.getElementById('sb-etf-qty-' + code + '-' + stype);
                 
                 var dbgHedgeEl = document.getElementById('sb-debug-hedge-' + code + '-' + stype);
                 var dbgExposureEl = document.getElementById('sb-debug-exposure-' + code + '-' + stype);
+                var anchorEtfsEl = document.getElementById('sb-anchor-etfs-' + code + '-' + stype);
                 
+                function renderAnchorEtfs(anchorQty) {
+                    if (!anchorEtfsEl) return;
+                    if (!(anchorQty > 0)) {
+                        anchorEtfsEl.textContent = '锚点ETF数量: -';
+                        return;
+                    }
+                    var anchorText = '锚点ETF数量: ';
+                    if (baseData.hedgingPortfolio && baseData.hedgingPortfolio.length > 0) {
+                        var anchorParts = [];
+                        baseData.hedgingPortfolio.forEach(function(hp) {
+                            var qty = Math.max(0, Math.round(anchorQty * (hp.weight || 0)));
+                            anchorParts.push(hp.symbol + ' ' + qty + '股');
+                        });
+                        anchorText += anchorParts.join(' / ');
+                    } else {
+                        anchorText += Math.round(anchorQty) + '股';
+                    }
+                    anchorEtfsEl.textContent = anchorText;
+                }
+
                 // Determine the hedgeValue based on the type and whether it's a reverse calculation
                 var hedgeValue = 0;
                 if (isReverse) { // For future modes (input is futures lots), use the API-provided hedgeValue (LOF shares per future lot)
                     hedgeValue = baseData.hedgeValue;
+                    if (!hedgeValue || hedgeValue <= 0) hedgeValue = baseData.futHedgeValue;
                 } else { // For ETF mode (input is capital), use API hedgeValue or fallback to derived etfHedgeValue
                     hedgeValue = baseData.hedgeValue;
                     if (!hedgeValue || hedgeValue <= 0) {
@@ -2588,14 +2893,15 @@ def generate(futures_data=None, ib_data=None):
                     }
                 }
 
-                if(dbgHedgeEl) dbgHedgeEl.textContent = hedgeValue > 0 ? hedgeValue.toFixed(4) : '-';
+                var displayHedgeValue = hedgeValue > 0 ? hedgeValue : baseData.etfHedgeValue;
+                if(dbgHedgeEl) dbgHedgeEl.textContent = displayHedgeValue > 0 ? displayHedgeValue.toFixed(4) : '-';
                 
                 console.log('calcHedgeQty 调试信息:', {
                     code: code,
                     stype: stype,
                     capitalInput: capitalInput,
                     capitalA: capitalA,
-                    realtimePriceEl: realtimePriceEl,
+                    futuresLots: futuresLots,
                     lofLivePriceStr: lofLivePriceStr,
                     lofRealtimePrice: lofRealtimePrice,
                     hedgeValue: hedgeValue,
@@ -2606,7 +2912,28 @@ def generate(futures_data=None, ib_data=None):
                     etfQtyEl: etfQtyEl
                 });
                 
-                if (hedgeValue && hedgeValue > 0 && capitalA > 0 && lofRealtimePrice > 0) {
+                if (isReverse && hedgeValue && hedgeValue > 0 && futuresLots > 0) {
+                    var reverseLofQty = Math.round((futuresLots * hedgeValue) / 100) * 100;
+                    var reverseExposure = lofRealtimePrice > 0 ? reverseLofQty * lofRealtimePrice * baseData.position : 0;
+                    var reverseAnchorQty = baseData.etfHedgeValue > 0 ? reverseLofQty / baseData.etfHedgeValue : 0;
+                    if(dbgExposureEl) dbgExposureEl.textContent = reverseExposure > 0 ? reverseExposure.toFixed(2) + ' 元' : '-';
+                    if(lofQtyEl) lofQtyEl.textContent = reverseLofQty;
+                    if(etfQtyEl) etfQtyEl.textContent = futuresLots;
+                    renderAnchorEtfs(reverseAnchorQty);
+
+                    var revTradeVolEl = document.getElementById('trade-vol-' + code + '-' + stype);
+                    var revIbFutureVolEl = document.getElementById('ib-future-vol-' + code);
+                    if(revTradeVolEl && !revTradeVolEl.dataset.manual) revTradeVolEl.value = reverseLofQty;
+                    if(revIbFutureVolEl && !revIbFutureVolEl.dataset.manual) revIbFutureVolEl.value = futuresLots;
+                } else if (isReverse && baseData.etfHedgeValue && baseData.etfHedgeValue > 0 && futuresLots > 0) {
+                    var fallbackAnchorQty = futuresLots;
+                    var fallbackLofQty = Math.round((fallbackAnchorQty * baseData.etfHedgeValue) / 100) * 100;
+                    var fallbackExposure = lofRealtimePrice > 0 ? fallbackLofQty * lofRealtimePrice * baseData.position : 0;
+                    if(dbgExposureEl) dbgExposureEl.textContent = fallbackExposure > 0 ? fallbackExposure.toFixed(2) + ' 元' : '-';
+                    if(lofQtyEl) lofQtyEl.textContent = fallbackLofQty;
+                    if(etfQtyEl) etfQtyEl.textContent = fallbackAnchorQty;
+                    renderAnchorEtfs(fallbackAnchorQty);
+                } else if (hedgeValue && hedgeValue > 0 && capitalA > 0 && lofRealtimePrice > 0) {
                     var finalEtfQty = 0;
                     var finalLofQty = 0;
                     
@@ -2626,6 +2953,7 @@ def generate(futures_data=None, ib_data=None):
                     
                     if(lofQtyEl) lofQtyEl.textContent = finalLofQty;
                     if(etfQtyEl) etfQtyEl.textContent = finalEtfQty;
+                    renderAnchorEtfs(finalEtfQty);
                     
                     // 顺便把结果自动填入下方的 QMT 和 IB 准备发送指令的输入框中
                     var tradeVolEl = document.getElementById('trade-vol-' + code + '-' + stype);
@@ -2689,6 +3017,8 @@ def generate(futures_data=None, ib_data=None):
                 } else {
                     if(lofQtyEl) lofQtyEl.textContent = '?';
                     if(etfQtyEl) etfQtyEl.textContent = '?';
+                    if(dbgExposureEl) dbgExposureEl.textContent = '-';
+                    renderAnchorEtfs(0);
                 }
             };
 
@@ -3572,8 +3902,13 @@ def generate(futures_data=None, ib_data=None):
 
             var exchangeRateInterval = null;
             
+            function normalizeLofCode(code) {
+                var match = String(code || '').match(/\\d{6}/);
+                return match ? match[0] : String(code || '').split('.')[0].trim();
+            }
+
             function getLofCodeElements(className, code, legacyIdPrefix) {
-                var cleanCode = String(code || '').split('.')[0].trim();
+                var cleanCode = normalizeLofCode(code);
                 var selector = '.' + className + '[data-lof-code="' + cleanCode + '"]';
                 var elements = Array.from(document.querySelectorAll(selector));
                 var legacyEl = document.getElementById(legacyIdPrefix + cleanCode);
@@ -3608,18 +3943,29 @@ def generate(futures_data=None, ib_data=None):
             }
             
             function getLofHomeRows(code) {
-                var cleanCode = String(code || '').split('.')[0].trim();
+                var cleanCode = normalizeLofCode(code);
                 var allRows = document.querySelectorAll('#tab-1 tbody tr, #tab-2 tbody tr, #tab-3 tbody tr');
                 return Array.from(allRows).filter(function(row) {
                     var cells = row.querySelectorAll('td');
                     if (cells.length < 9) return false;
-                    var rowCode = cells[0].textContent.trim().split('.')[0];
+                    var rowCode = normalizeLofCode(cells[0].textContent);
                     return rowCode === cleanCode;
                 });
             }
             
-            function applyLofPriceUpdate(code, rawPrice, rawQuote) {
-                var cleanCode = String(code || '').split('.')[0].trim();
+            function refreshAfterLofPriceUpdate() {
+                try {
+                    window.calculateRealTimeValues();
+                    if (window.lastKnownFutures) {
+                        window.updateFuturesTableColumns(window.lastKnownFutures.GC, window.lastKnownFutures.CL, window.lastKnownFutures.NQ, window.lastKnownFutures.ES, window.lastKnownFutures.NQ_BID, window.lastKnownFutures.ES_BID);
+                    }
+                } catch (e) {
+                    console.warn('LOF实时价已更新，实时估值重算失败:', e);
+                }
+            }
+
+            function applyLofPriceUpdate(code, rawPrice, rawQuote, options) {
+                var cleanCode = normalizeLofCode(code);
                 var price = parseFloat(rawPrice);
                 if (!cleanCode || !(price > 0)) return;
                 rememberLofQuote(cleanCode, rawQuote);
@@ -3630,6 +3976,7 @@ def generate(futures_data=None, ib_data=None):
                 } else {
                     updateRealtimePriceCells(cleanCode, price.toFixed(3), '', '');
                 }
+                fillDefaultTradePrices(cleanCode);
                 
                 var rows = getLofHomeRows(cleanCode);
                 for (var i = 0; i < rows.length; i++) {
@@ -3644,10 +3991,7 @@ def generate(futures_data=None, ib_data=None):
                     }
                 }
                 
-                window.calculateRealTimeValues();
-                if (window.lastKnownFutures) {
-                    window.updateFuturesTableColumns(window.lastKnownFutures.GC, window.lastKnownFutures.CL, window.lastKnownFutures.NQ, window.lastKnownFutures.ES, window.lastKnownFutures.NQ_BID, window.lastKnownFutures.ES_BID);
-                }
+                if (!options || !options.deferRefresh) refreshAfterLofPriceUpdate();
             }
             window.applyLofPriceUpdate = applyLofPriceUpdate;
             
@@ -3689,6 +4033,7 @@ def generate(futures_data=None, ib_data=None):
                 fetch('http://localhost:5000/api/lof')
                     .then(response => response.json())
                     .then(data => {
+                        var updatedAny = false;
                         var allRows = document.querySelectorAll('tbody tr');
                         var filteredRows = Array.from(allRows).filter(row => {
                             var isHomePage = !!row.closest('#tab-1, #tab-2, #tab-3');
@@ -3701,10 +4046,25 @@ def generate(futures_data=None, ib_data=None):
                             var cells = row.querySelectorAll('td');
                             if (cells.length >= 9) {
                                 var codeCell = cells[0];
-                                var code = codeCell.textContent.trim().split('.')[0];
+                                var code = normalizeLofCode(codeCell.textContent);
+                                var quote = data[code];
+                                if (!quote) {
+                                    Object.keys(data || {}).some(function(k) {
+                                        if (normalizeLofCode(k) === code) {
+                                            quote = data[k];
+                                            return true;
+                                        }
+                                        return false;
+                                    });
+                                }
                                 
-                                if (data[code] && data[code].price > 0) {
-                                    window.applyLofPriceUpdate(code, data[code].price, data[code]);
+                                if (quote && quote.price > 0) {
+                                    try {
+                                        window.applyLofPriceUpdate(code, quote.price, quote, { deferRefresh: true });
+                                        updatedAny = true;
+                                    } catch (e) {
+                                        console.warn('LOF实时价单行更新失败:', code, e);
+                                    }
                                 } else {
                                     if (!tradingDay) {
                                         updateRealtimePriceCells(code, '非交易日');
@@ -3719,16 +4079,14 @@ def generate(futures_data=None, ib_data=None):
                                 }
                             }
                         });
+                        if (updatedAny) refreshAfterLofPriceUpdate();
                     })
                     .catch(error => {
                         console.error('获取LOF基金数据失败:', error);
                     })
                     .finally(() => {
                         setTimeout(function() {
-                            window.calculateRealTimeValues();
-                            if (window.lastKnownFutures) {
-                                window.updateFuturesTableColumns(window.lastKnownFutures.GC, window.lastKnownFutures.CL, window.lastKnownFutures.NQ, window.lastKnownFutures.ES, window.lastKnownFutures.NQ_BID, window.lastKnownFutures.ES_BID);
-                            }
+                            refreshAfterLofPriceUpdate();
                             
                             // A股价格跳动后，刷新底层建议下单数量
                             Object.keys(window.fundBaseData).forEach(function(c) {
@@ -3963,10 +4321,13 @@ def generate(futures_data=None, ib_data=None):
                                     var askSizeEl = document.getElementById('sb-ib-ask-size-' + fundCode + '-' + type);
                                     if (mergedPrices[sym]) {
                                         var bidValue = window.getIbBidValue(mergedPrices[sym]);
+                                        var askValue = window.getIbAskValue(mergedPrices[sym]);
+                                        var ibPriceEl = document.getElementById('ib-trade-price-' + fundCode + '-' + type);
                                         if (bidEl && bidValue > 0) bidEl.textContent = bidValue.toFixed(2);
-                                        if (askEl && mergedPrices[sym].ask) askEl.textContent = mergedPrices[sym].ask.toFixed(2);
-                                        if (bidSizeEl) bidSizeEl.textContent = mergedPrices[sym].bid_size !== undefined ? mergedPrices[sym].bid_size : '-';
-                                        if (askSizeEl) askSizeEl.textContent = mergedPrices[sym].ask_size !== undefined ? mergedPrices[sym].ask_size : '-';
+                                        if (askEl && askValue > 0) askEl.textContent = askValue.toFixed(2);
+                                        setDefaultPriceInput(ibPriceEl, askValue || bidValue, 2);
+                                        if (bidSizeEl) bidSizeEl.textContent = formatOrderSize(mergedPrices[sym].bid_size);
+                                        if (askSizeEl) askSizeEl.textContent = formatOrderSize(mergedPrices[sym].ask_size);
                                     } else {
                                         if (bidEl) bidEl.textContent = '未能读到实时数据';
                                         if (askEl) askEl.textContent = '未能读到实时数据';
@@ -4013,16 +4374,19 @@ def generate(futures_data=None, ib_data=None):
                             }
                             if (futureSym && mergedPrices[futureSym]) {
                                 var futureBidValue = window.getIbBidValue(mergedPrices[futureSym]);
+                                var futureAskValue = window.getIbAskValue(mergedPrices[futureSym]);
                                 if (futureBidEl && futureBidValue > 0) futureBidEl.textContent = futureBidValue.toFixed(2);
-                                if (futureAskEl && mergedPrices[futureSym].ask) futureAskEl.textContent = mergedPrices[futureSym].ask.toFixed(2);
-                                if (futureBidSizeEl) futureBidSizeEl.textContent = mergedPrices[futureSym].bid_size !== undefined ? mergedPrices[futureSym].bid_size : '-';
-                                if (futureAskSizeEl) futureAskSizeEl.textContent = mergedPrices[futureSym].ask_size !== undefined ? mergedPrices[futureSym].ask_size : '-';
+                                if (futureAskEl && futureAskValue > 0) futureAskEl.textContent = futureAskValue.toFixed(2);
+                                setDefaultPriceInput(document.getElementById('ib-future-price-' + fundCode), futureAskValue || futureBidValue, 2);
+                                if (futureBidSizeEl) futureBidSizeEl.textContent = formatOrderSize(mergedPrices[futureSym].bid_size);
+                                if (futureAskSizeEl) futureAskSizeEl.textContent = formatOrderSize(mergedPrices[futureSym].ask_size);
                             } else {
                                 if (futureBidEl) futureBidEl.textContent = '未能读到实时数据';
                                 if (futureAskEl) futureAskEl.textContent = '未能读到实时数据';
                                 if (futureBidSizeEl) futureBidSizeEl.textContent = '-';
                                 if (futureAskSizeEl) futureAskSizeEl.textContent = '-';
                             }
+                            fillDefaultTradePrices(fundCode);
                         });
                         
                         const statusElement = document.getElementById('ib-status-text');
@@ -4119,10 +4483,11 @@ def generate(futures_data=None, ib_data=None):
                             
                             if (futureSym && errorPrices[futureSym]) {
                                 var errorFutureBidValue = window.getIbBidValue(errorPrices[futureSym]);
+                                var errorFutureAskValue = window.getIbAskValue(errorPrices[futureSym]);
                                 if (futureBidEl && errorFutureBidValue > 0) futureBidEl.textContent = errorFutureBidValue.toFixed(2);
-                                if (futureAskEl && errorPrices[futureSym].ask) futureAskEl.textContent = errorPrices[futureSym].ask.toFixed(2);
-                                if (futureBidSizeEl) futureBidSizeEl.textContent = errorPrices[futureSym].bid_size !== undefined ? errorPrices[futureSym].bid_size : '-';
-                                if (futureAskSizeEl) futureAskSizeEl.textContent = errorPrices[futureSym].ask_size !== undefined ? errorPrices[futureSym].ask_size : '-';
+                                if (futureAskEl && errorFutureAskValue > 0) futureAskEl.textContent = errorFutureAskValue.toFixed(2);
+                                if (futureBidSizeEl) futureBidSizeEl.textContent = formatOrderSize(errorPrices[futureSym].bid_size);
+                                if (futureAskSizeEl) futureAskSizeEl.textContent = formatOrderSize(errorPrices[futureSym].ask_size);
                             } else {
                                 if (futureBidEl) futureBidEl.textContent = '未能读到实时数据';
                                 if (futureAskEl) futureAskEl.textContent = '未能读到实时数据';

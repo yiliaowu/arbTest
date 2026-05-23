@@ -175,24 +175,25 @@ class QmtSocketClient:
                 price_to_use = ask_p1 if ask_p1 > 0 else last_price
 
                 if price_to_use > 0:
+                    new_book = {
+                        'last_price': last_price, 'volume': volume,
+                        'ask_p1': ask_p1, 'ask_v1': ask_v1,
+                        'ask_p2': ask_p2, 'ask_v2': ask_v2,
+                        'bid_p1': bid_p1, 'bid_v1': bid_v1,
+                        'bid_p2': bid_p2, 'bid_v2': bid_v2
+                    }
                     with self.lock:
-                        # 记录完整盘口，供 LOF04 沙盘推演滑点和冲击成本使用
-                        self.order_books[code] = {
-                            'last_price': last_price, 'volume': volume,
-                            'ask_p1': ask_p1, 'ask_v1': ask_v1,
-                            'ask_p2': ask_p2, 'ask_v2': ask_v2,
-                            'bid_p1': bid_p1, 'bid_v1': bid_v1,
-                            'bid_p2': bid_p2, 'bid_v2': bid_v2
-                        }
-                        
                         old_price = self.prices.get(code, 0)
+                        old_book = self.order_books.get(code, {})
+                        # 记录完整盘口，供 LOF04 沙盘推演滑点和冲击成本使用
+                        self.order_books[code] = new_book
                         self.prices[code] = price_to_use
-                        if old_price != price_to_use:
-                            if self.on_price_update:
-                                try:
-                                    self.on_price_update(code, price_to_use)
-                                except Exception as e:
-                                    print(f"❌ [银河QMT] 回调执行失败: {e}")
+                        should_callback = old_price != price_to_use or old_book != new_book
+                    if should_callback and self.on_price_update:
+                        try:
+                            self.on_price_update(code, price_to_use)
+                        except Exception as e:
+                            print(f"❌ [银河QMT] 回调执行失败: {e}")
             # 兼容老版本格式回退，以防万一服务端还没重启
             elif len(parts) >= 5:
                 code_full = parts[1]

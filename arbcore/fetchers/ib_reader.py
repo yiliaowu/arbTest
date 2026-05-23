@@ -189,6 +189,18 @@ class IBReader(EWrapper, EClient):
         contract.secType = "CONTFUT"
         return contract
 
+    def _request_recent_hist_price(self, sym, what_to_show, timeout=3.0):
+        req_id = self._get_next_req_id()
+        contract = self._build_contract(sym)
+        self.req_events[req_id] = threading.Event()
+        try:
+            self.reqHistoricalData(req_id, contract, "", "1800 S", "1 min", what_to_show, 0, 1, False, [])
+            self.req_events[req_id].wait(timeout=timeout)
+            return self.req_data.get(req_id, 0.0) or 0.0
+        finally:
+            self.req_events.pop(req_id, None)
+            self.req_data.pop(req_id, None)
+
     def _set_future_contract_month(self, sym, month):
         month = self._normalize_contract_month(month)
         if not month or sym not in self.future_symbols:
@@ -504,21 +516,20 @@ class IBReader(EWrapper, EClient):
                 for sym in fallback_needed:
                     if sym in self.future_symbols and not self.future_contract_months.get(sym):
                         continue
-                    req_id_snap = self._get_next_req_id()
-                    c_snap = self._build_contract(sym)
-                    self.req_events[req_id_snap] = threading.Event()
-                    # 兜底请求必须是 BID，获取无滑点盘口
-                    self.reqHistoricalData(req_id_snap, c_snap, "", "1800 S", "1 min", "BID", 0, 1, False, [])
-                    
-                    self.req_events[req_id_snap].wait(timeout=3.0)
-                    price = self.req_data.get(req_id_snap)
-                    if price:
+                    # 兜底快照分别请求 BID/ASK，避免只显示买一而卖一长期为空。
+                    bid_price = self._request_recent_hist_price(sym, "BID")
+                    ask_price = self._request_recent_hist_price(sym, "ASK")
+                    if bid_price or ask_price:
                         if sym not in self.prices or not isinstance(self.prices[sym], dict):
                             self.prices[sym] = {'bid': 0.0, 'ask': 0.0, 'last': 0.0, 'price': 0.0, 'bid_size': 0, 'ask_size': 0}
-                        self.prices[sym]['bid'] = price
-                        self.prices[sym]['ask'] = 0.0 # 兜底快照只保留 bid，避免误把卖一伪造成买一
+                        if bid_price:
+                            self.prices[sym]['bid'] = bid_price
+                            self.prices[sym]['price'] = bid_price
+                        if ask_price:
+                            self.prices[sym]['ask'] = ask_price
                         self.sources[sym] = "安全快照"
                         self.last_update_time = datetime.now()
+                        self.last_tick_time[sym] = current_timestamp
             
             if self.prices:
                 log_msg = ", ".join([f"{k}=${v.get('bid',0):.2f}({self.sources.get(k,'')})" for k, v in self.prices.items() if isinstance(v, dict)])
@@ -612,7 +623,6 @@ class IBReader(EWrapper, EClient):
                     self.prices[sym]['price'] = price
                     if self.prices[sym]['bid'] == 0.0:
                         self.prices[sym]['bid'] = price
-                        self.prices[sym]['ask'] = 0.0
                 
                 self.last_update_time = datetime.now()
                 

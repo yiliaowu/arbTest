@@ -751,17 +751,19 @@ class HtmlGenerator:
                     if (agPriceElement) {
                         agPriceElement.textContent = data.price.toFixed(2);
                     }
-                } else if (data.symbol === 'MNQ') {
+                } else if (data.symbol === 'NQ' || data.symbol === 'MNQ') {
                     var nqPriceElement = document.querySelector('#nq-price');
                     if (nqPriceElement) {
                         nqPriceElement.textContent = data.price.toFixed(2);
                     }
-                } else if (data.symbol === 'MES') {
+                } else if (data.symbol === 'ES' || data.symbol === 'MES') {
                     var esPriceElement = document.querySelector('#es-price');
                     if (esPriceElement) {
                         esPriceElement.textContent = data.price.toFixed(2);
                     }
                 }
+                if (window.refreshFutureDrivenViews) window.refreshFutureDrivenViews(data.symbol);
+                if (window.calculateRealTimeValues) window.calculateRealTimeValues();
             });
 
             // 接收期货价格快照
@@ -782,10 +784,11 @@ class HtmlGenerator:
                             clPriceElement.textContent = (data.prices.MCL || data.prices.CL).toFixed(2);
                         }
                     }
-                    if (data.prices.AG0) {
+                    var agSnapshotPrice = data.prices.AG0 || data.prices.AG;
+                    if (agSnapshotPrice) {
                         var agPriceElement = document.querySelector('#ag0-price');
                         if (agPriceElement) {
-                            agPriceElement.textContent = data.prices.AG0.toFixed(2);
+                            agPriceElement.textContent = agSnapshotPrice.toFixed(2);
                         }
                     }
                     var nqSnapshotPrice = data.prices.MNQ || data.prices.NQ;
@@ -802,6 +805,12 @@ class HtmlGenerator:
                             esPriceElement.textContent = esSnapshotPrice.toFixed(2);
                         }
                     }
+                    if (window.refreshFutureDrivenViews) {
+                        ['MGC', 'MCL', 'MNQ', 'MES', 'AG0'].forEach(function(sym) {
+                            window.refreshFutureDrivenViews(sym);
+                        });
+                    }
+                    if (window.calculateRealTimeValues) window.calculateRealTimeValues();
                 }
             });
         </script>
