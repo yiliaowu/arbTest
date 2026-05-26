@@ -39,6 +39,8 @@ class IBReader(EWrapper, EClient):
         self.req_events = {} 
         self.req_data = {} 
         self.placed_order_ids = set() # 记录本实例下发的所有订单 ID，用于精准撤单
+        self.order_events = {}
+        self.order_results = {}
         
         # 内存长连接订阅池
         self.mkt_req_ids = {}
@@ -306,11 +308,11 @@ class IBReader(EWrapper, EClient):
             return
 
         cont_months = self._request_contract_months(self._build_standard_cont_future_contract)
-        missing = {sym for sym, month in cont_months.items() if not month}
-        chain_months = self._request_contract_months(self._build_standard_future_chain_contract) if missing else {}
+        # 下单必须避开已过最后交易日的近月合约；普通FUT链条带有真实到期日，优先使用它。
+        chain_months = self._request_contract_months(self._build_standard_future_chain_contract)
 
         for micro_sym in sorted(self.future_symbols):
-            month = cont_months.get(micro_sym) or chain_months.get(micro_sym, "")
+            month = chain_months.get(micro_sym) or cont_months.get(micro_sym, "")
             if month:
                 self._set_future_contract_month(micro_sym, month)
                 print(f"[IBReader] {micro_sym} 使用主连所在月份: {month}")
@@ -551,6 +553,14 @@ class IBReader(EWrapper, EClient):
                 errorCode, errorString = args[0], args[1]
         else:
             return
+
+        if reqId in self.order_events:
+            self.order_results[reqId] = {
+                "status": "error",
+                "message": f"IB拒单/报错 {errorCode}: {errorString}",
+            }
+            self.order_events[reqId].set()
+
         # 🤫 彻底屏蔽 10089(延时警告) 和 10346(持仓通道被TWS强制抢占警告)
         if errorCode in [2104, 2106, 2107, 2108, 2157, 2158, 10091, 10197, 10089, 10346]:
             return
@@ -697,18 +707,30 @@ class IBReader(EWrapper, EClient):
         ts = datetime.now().strftime('%H:%M:%S.%f')[:-3]
         status = getattr(orderState, 'status', '')
         print(f"[IBReader] openOrder {ts}: orderId={orderId}, {getattr(order, 'action', '')} {getattr(contract, 'symbol', '')}, status={status}")
+        if orderId in self.order_events:
+            self.order_results[orderId] = {
+                "status": status or "openOrder",
+                "message": f"IB已接收订单: openOrder status={status or '-'}",
+            }
+            self.order_events[orderId].set()
 
     def orderStatus(self, orderId, status, filled, remaining, avgFillPrice, permId, parentId, lastFillPrice, clientId, whyHeld, mktCapPrice):
         super().orderStatus(orderId, status, filled, remaining, avgFillPrice, permId, parentId, lastFillPrice, clientId, whyHeld, mktCapPrice)
         ts = datetime.now().strftime('%H:%M:%S.%f')[:-3]
         print(f"[IBReader] orderStatus {ts}: orderId={orderId}, status={status}, filled={filled}, remaining={remaining}, avg={avgFillPrice}, whyHeld={whyHeld}")
+        if orderId in self.order_events:
+            self.order_results[orderId] = {
+                "status": status,
+                "message": f"IB订单状态: {status}, filled={filled}, remaining={remaining}, avg={avgFillPrice}, whyHeld={whyHeld or '-'}",
+            }
+            self.order_events[orderId].set()
 
     def execDetails(self, reqId, contract, execution):
         super().execDetails(reqId, contract, execution)
         ts = datetime.now().strftime('%H:%M:%S.%f')[:-3]
         print(f"[IBReader] execDetails {ts}: orderId={getattr(execution, 'orderId', '')}, {getattr(contract, 'symbol', '')}, shares={getattr(execution, 'shares', '')}, price={getattr(execution, 'price', '')}")
 
-    def place_us_order(self, symbol, action, quantity, price):
+    def place_us_order(self, symbol, action, quantity, price, sec_type="STK"):
         """核心恢复：IB 盈透盘前夜盘下单指令发送"""
         total_start = time.perf_counter()
         req_id_ms = 0
@@ -729,38 +751,54 @@ class IBReader(EWrapper, EClient):
             return False, "无法获取有效订单 ID，请检查 TWS 是否开启了 '只读API' 限制"
 
         build_start = time.perf_counter()
-        contract = Contract()
-        contract.symbol = symbol
-        contract.secType = "STK"
-        
-        # 🛡️ 智能追加 Primary Exchange (主交易所)
-        # 直接路由时，如果没有 primaryExchange，极易被系统当作歧义合约而瞬间拒单 (Error 201)
-        primary_map = {"QQQ": "NASDAQ", "SPY": "ARCA", "GLD": "ARCA", "USO": "ARCA", "XOP": "ARCA", "XBI": "ARCA", "SLV": "ARCA"}
-        # 🛡️ 核心修复：夜盘直连 OVERNIGHT 必须移除 primaryExchange，否则 Gateway 的 Sec-def 断连时极易导致 201 废单
-        if symbol in primary_map and not self.is_us_night_session():
-            contract.primaryExchange = primary_map[symbol]
-            
-        # 智能判断交易所 (根据测试脚本的成功经验，统一使用 OVERNIGHT)
-        if self.is_us_night_session():
-            contract.exchange = "OVERNIGHT"
-            print("[IBReader] 智能路由: 检测到夜盘时段，订单交易所切换为 OVERNIGHT")
+        sec_type = str(sec_type or "STK").upper()
+        symbol = str(symbol or "").strip().upper()
+
+        if sec_type == "FUT":
+            symbol = self._to_micro_future(symbol)
+            if not symbol or symbol not in self.future_symbols:
+                return False, f"不支持的IB期货合约: {symbol or '空'}"
+            if not self.future_contract_months.get(symbol):
+                self.refresh_main_contract_months(force=True)
+            if not self.future_contract_months.get(symbol):
+                return False, f"未能获取 {symbol} 主力合约月份，请检查TWS期货合约权限/行情连接"
+            contract = self._build_contract(symbol)
+            unit_name = "张"
         else:
-            contract.exchange = "SMART"
-            print("[IBReader] 智能路由: 非夜盘时段，订单交易所使用 SMART")
-        contract.currency = "USD"
+            contract = Contract()
+            contract.symbol = symbol
+            contract.secType = "STK"
+            
+            # 🛡️ 智能追加 Primary Exchange (主交易所)
+            # 直接路由时，如果没有 primaryExchange，极易被系统当作歧义合约而瞬间拒单 (Error 201)
+            primary_map = {"QQQ": "NASDAQ", "SPY": "ARCA", "GLD": "ARCA", "USO": "ARCA", "XOP": "ARCA", "XBI": "ARCA", "SLV": "ARCA"}
+            # 🛡️ 核心修复：夜盘直连 OVERNIGHT 必须移除 primaryExchange，否则 Gateway 的 Sec-def 断连时极易导致 201 废单
+            if symbol in primary_map and not self.is_us_night_session():
+                contract.primaryExchange = primary_map[symbol]
+                
+            # 智能判断交易所 (根据测试脚本的成功经验，统一使用 OVERNIGHT)
+            if self.is_us_night_session():
+                contract.exchange = "OVERNIGHT"
+                print("[IBReader] 智能路由: 检测到夜盘时段，订单交易所切换为 OVERNIGHT")
+            else:
+                contract.exchange = "SMART"
+                print("[IBReader] 智能路由: 非夜盘时段，订单交易所使用 SMART")
+            contract.currency = "USD"
+            unit_name = "股"
         
         order = Order()
         order.action = action # 'BUY' 或 'SELL'
         
-        # 🛡️ 核心修复：API卖空指令的正确姿势。Gateway 不会像 TWS 界面那样自动转换，必须显式声明融券来源
-        if action == "SELL":
+        # 🛡️ 核心修复：API卖空指令的正确姿势。股票卖空需要显式声明融券来源；期货SELL天然开空，不设置该字段。
+        if sec_type != "FUT" and action == "SELL":
             order.shortSaleSlot = 1
             
         order.orderType = "LMT"
         order.totalQuantity = float(quantity)
         order.lmtPrice = float(price)
         order.tif = "DAY"
-        order.outsideRth = True # 与测试脚本保持100%一致，允许盘外交易
+        if sec_type != "FUT":
+            order.outsideRth = True # 与测试脚本保持100%一致，允许股票盘外交易
         build_ms = (time.perf_counter() - build_start) * 1000
 
         with self.order_id_lock:
@@ -768,14 +806,39 @@ class IBReader(EWrapper, EClient):
             self.next_order_id += 1 # 内部自增以便连续下单
 
         place_start = time.perf_counter()
-        self.placeOrder(order_id, contract, order)
+        self.order_events[order_id] = threading.Event()
+        self.order_results.pop(order_id, None)
+        try:
+            self.placeOrder(order_id, contract, order)
+        except Exception as e:
+            self.order_events.pop(order_id, None)
+            self.order_results.pop(order_id, None)
+            return False, f"placeOrder调用异常: {e}"
         place_ms = (time.perf_counter() - place_start) * 1000
-        self.placed_order_ids.add(order_id)
-        total_ms = (time.perf_counter() - total_start) * 1000
 
         short_sale = getattr(order, 'shortSaleSlot', 0)
-        timing = f"IB耗时: 总{total_ms:.0f}ms/取订单号{req_id_ms:.0f}ms/构建{build_ms:.0f}ms/placeOrder{place_ms:.0f}ms"
-        return True, f"指令已发送: orderId={order_id} {action} {quantity}股 {symbol} @ {price} (路由: {contract.exchange}, shortSaleSlot={short_sale}) | {timing}"
+        month = getattr(contract, "lastTradeDateOrContractMonth", "")
+        month_text = f", 月份={month}" if month else ""
+        order_desc = f"orderId={order_id} {action} {quantity}{unit_name} {symbol} @ {price} (类型: {sec_type}, 路由: {contract.exchange}{month_text}, shortSaleSlot={short_sale})"
+
+        ack_start = time.perf_counter()
+        got_ack = self.order_events[order_id].wait(timeout=6.0)
+        ack_ms = (time.perf_counter() - ack_start) * 1000
+        total_ms = (time.perf_counter() - total_start) * 1000
+        timing = f"IB耗时: 总{total_ms:.0f}ms/取订单号{req_id_ms:.0f}ms/构建{build_ms:.0f}ms/placeOrder{place_ms:.0f}ms/等回执{ack_ms:.0f}ms"
+        result = self.order_results.pop(order_id, None)
+        self.order_events.pop(order_id, None)
+
+        if not got_ack:
+            return False, f"指令已发送但6秒内未收到IB回执，请到TWS/Gateway日志核对: {order_desc} | {timing}"
+
+        status = str((result or {}).get("status", "")).lower()
+        message = (result or {}).get("message", "")
+        if status == "error" or status in {"inactive", "cancelled", "apicancelled"}:
+            return False, f"{message}: {order_desc} | {timing}"
+
+        self.placed_order_ids.add(order_id)
+        return True, f"指令已被IB接收: {order_desc}; {message} | {timing}"
 
     def cancel_all_orders(self):
         """精准撤单：只撤销本程序沙盘发出的订单，绝不误伤手机APP挂的单"""

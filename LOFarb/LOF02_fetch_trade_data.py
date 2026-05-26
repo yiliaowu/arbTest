@@ -1421,12 +1421,13 @@ def api_ib_trade():
     symbol = data.get('symbol', '').strip().upper()
     volume = data.get('volume', 0)
     price = data.get('price', 0)
+    sec_type = data.get('sec_type', 'STK')
     
     if not symbol or float(volume) <= 0 or float(price) <= 0:
         return jsonify({"status": "error", "message": "参数非法: 代码, 数量或价格无效"}), 400
         
     send_start = time.perf_counter()
-    success, msg = ib_reader_instance.place_us_order(symbol, action, volume, price)
+    success, msg = ib_reader_instance.place_us_order(symbol, action, volume, price, sec_type=sec_type)
     send_ms = (time.perf_counter() - send_start) * 1000
     total_ms = (time.perf_counter() - request_start) * 1000
     msg = f"{msg} | 后端耗时: 总{total_ms:.0f}ms/IB下单{send_ms:.0f}ms"

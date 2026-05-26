@@ -1230,7 +1230,7 @@ def generate_fund_data(fund, data_processor, html_generator, futures_data, futur
                 html += f"""                                <button onclick="window.executeIbTrade('{code}', 'SELL', '{suffix}')" style="background:#e65100; color:white; border:none; padding:5px 0; width:180px; border-radius:4px; cursor:pointer; font-weight:bold; font-size:11px; box-shadow: 0 2px 4px rgba(230,81,0,0.3); transition:0.2s;">IB {us_sym} 卖空开仓</button>\n"""
             
             if has_future:
-                html += f"""                    <button onclick="alert('期货交易功能开发中')" style="background:#e65100; color:white; border:none; padding:5px 0; width:180px; border-radius:4px; cursor:pointer; font-weight:bold; font-size:11px; box-shadow: 0 2px 4px rgba(230,81,0,0.3); transition:0.2s;">{future_symbol} 期货 卖空开仓</button>"""
+                html += f"""                    <button onclick="window.executeIbFutureTrade('{code}', 'SELL')" style="background:#e65100; color:white; border:none; padding:5px 0; width:180px; border-radius:4px; cursor:pointer; font-weight:bold; font-size:11px; box-shadow: 0 2px 4px rgba(230,81,0,0.3); transition:0.2s;">{future_symbol} 期货 卖空开仓</button>"""
                 
             html += f"""
                             </div>
@@ -1244,7 +1244,7 @@ def generate_fund_data(fund, data_processor, html_generator, futures_data, futur
                 html += f"""                                <button onclick="window.executeIbTrade('{code}', 'BUY', '{suffix}')" style="background:#1565c0; color:white; border:none; padding:5px 0; width:180px; border-radius:4px; cursor:pointer; font-weight:bold; font-size:11px; box-shadow: 0 2px 4px rgba(21,101,192,0.3); transition:0.2s;">IB {us_sym} 买入平仓</button>\n"""
             
             if has_future:
-                html += f"""                    <button onclick="alert('期货交易功能开发中')" style="background:#1565c0; color:white; border:none; padding:5px 0; width:180px; border-radius:4px; cursor:pointer; font-weight:bold; font-size:11px; box-shadow: 0 2px 4px rgba(21,101,192,0.3); transition:0.2s;">{future_symbol} 期货 买入平仓</button>"""
+                html += f"""                    <button onclick="window.executeIbFutureTrade('{code}', 'BUY')" style="background:#1565c0; color:white; border:none; padding:5px 0; width:180px; border-radius:4px; cursor:pointer; font-weight:bold; font-size:11px; box-shadow: 0 2px 4px rgba(21,101,192,0.3); transition:0.2s;">{future_symbol} 期货 买入平仓</button>"""
                 
             html += f"""
                             </div>
@@ -3481,6 +3481,47 @@ def generate(futures_data=None, ib_data=None):
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ action: action, symbol: symInput, volume: volInput, price: priceInput })
+                })
+                .then(res => {
+                    var headerTs = performance.now();
+                    return res.json().then(data => ({data: data, headerTs: headerTs}));
+                })
+                .then(result => {
+                    var data = result.data;
+                    var jsonTs = performance.now();
+                    var frontendTiming = ' | 前端耗时: fetch响应' + Math.round(result.headerTs - fetchStartTs) + 'ms/json+' + Math.round(jsonTs - result.headerTs) + 'ms/确认后总' + Math.round(jsonTs - fetchStartTs) + 'ms/点击后总' + Math.round(jsonTs - clickTs) + 'ms';
+                    msgEl.textContent = (data.status === 'success' ? '✅ ' : '❌ ') + data.message;
+                    msgEl.textContent += frontendTiming;
+                    msgEl.style.color = data.status === 'success' ? '#1565c0' : '#d32f2f';
+                })
+                .catch(err => { msgEl.textContent = '❌ 网络请求失败 | 前端耗时: 确认后总' + Math.round(performance.now() - fetchStartTs) + 'ms'; msgEl.style.color = '#d32f2f'; });
+            };
+
+            // IB 期货独立交易接口
+            window.executeIbFutureTrade = function(code, action) {
+                var clickTs = performance.now();
+                var baseData = window.fundBaseData && window.fundBaseData[code];
+                var symInput = normalizeFutureAskSymbol(baseData ? baseData.futureSymbol : '');
+                var volInput = parseInt(document.getElementById('ib-future-vol-' + code).value);
+                var priceInput = parseFloat(document.getElementById('ib-future-price-' + code).value);
+
+                if (!symInput) { alert('⚠️ 当前基金没有可用的IB期货合约代码！'); return; }
+                if (symInput === 'AG0' || symInput === 'AG') { alert('⚠️ AG0/沪银不是IB期货合约，暂不能通过IB下单。'); return; }
+                if (!volInput || volInput <= 0) { alert('⚠️ 期货委托数量必须大于0！'); return; }
+                if (!priceInput || priceInput <= 0) { alert('⚠️ 请输入有效的期货限价！'); return; }
+
+                var actionText = action === 'BUY' ? '买入平仓' : '卖空开仓';
+                if (!confirm('🚨 IB期货危险操作确认\n\n您确定要通过 IB 自动执行以下期货交易吗？\n\n方向: ' + actionText + '\n合约: ' + symInput + '\n价格: ' + priceInput + '\n数量: ' + volInput + '张')) return;
+
+                var msgEl = document.getElementById('ib-future-msg-' + code);
+                msgEl.textContent = '🚀 期货指令发送中...';
+                msgEl.style.color = '#f57c00';
+                var fetchStartTs = performance.now();
+
+                fetch(window.tradeApiBase + '/api/ib_trade', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ action: action, symbol: symInput, volume: volInput, price: priceInput, sec_type: 'FUT' })
                 })
                 .then(res => {
                     var headerTs = performance.now();
