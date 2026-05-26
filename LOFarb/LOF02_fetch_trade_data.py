@@ -573,6 +573,7 @@ class LOFPriceReader:
         self.lof_bid_sizes = {}
         self.lof_ask_sizes = {}
         self.lof_order_books = {}
+        self.lof_update_ts = {}
         self.running = False
         self.use_tdx = False
         self.use_qmt = False
@@ -638,6 +639,7 @@ class LOFPriceReader:
                         old_bid_size = self.lof_bid_sizes.get(code, 0)
                         old_ask_size = self.lof_ask_sizes.get(code, 0)
                         self.lof_prices[code] = price_to_use
+                        self.lof_update_ts[code] = time.time()
                         self.lof_ask_prices[code] = price_to_use
                         if bid1 > 0:
                             self.lof_bid_prices[code] = bid1
@@ -704,6 +706,7 @@ class LOFPriceReader:
                             
                     old_price = self.lof_prices.get(clean_code, 0)
                     self.lof_prices[clean_code] = price
+                    self.lof_update_ts[clean_code] = time.time()
                     
                     if not hasattr(self, '_qmt_success_logged') and price > 0:
                         print("  ✅ [行情状态] 银河QMT数据接收成功，行情链路畅通！")
@@ -869,6 +872,7 @@ class LOFPriceReader:
                                     old_bid_size = self.lof_bid_sizes.get(code, 0)
                                     old_ask_size = self.lof_ask_sizes.get(code, 0)
                                     self.lof_prices[code] = price_to_use
+                                    self.lof_update_ts[code] = time.time()
                                     bid1 = float(snap.get('Buy1', 0) or 0)
                                     bid_size1 = float(snap.get('Buy1Vol', snap.get('Buy1Volume', snap.get('BuyVol1', 0))) or 0)
                                     ask_size1 = float(snap.get('Sell1Vol', snap.get('Sell1Volume', snap.get('SellVol1', 0))) or 0)
@@ -931,6 +935,7 @@ class LOFPriceReader:
                                     old_bid_size = self.lof_bid_sizes.get(code, 0)
                                     old_ask_size = self.lof_ask_sizes.get(code, 0)
                                     self.lof_prices[code] = price_to_use
+                                    self.lof_update_ts[code] = time.time()
                                     bid_prices = tick.get('bidPrice', [0])
                                     bid_vols = tick.get('bidVol', [0])
                                     ask_vols = tick.get('askVol', [0])
@@ -964,13 +969,19 @@ class LOFPriceReader:
                             self.use_guojin = False
             
                 # ======== 终极颗粒度兜底：新浪外网爬虫 ========
-                # 无论什么引擎为主，只要有基金价格是 0（断流或懒加载拦截），新浪立刻补位！
+                # 价格为 0 或长时间没有更新时都补位，避免主通道断流后前端一直显示旧价。
                 current_time = time.time()
                 last_sina_time = getattr(self, '_last_sina_time', 0)
                 
                 # 优雅启动：系统启动前 15 秒绝对不触发新浪兜底，给 QMT 充足的建连和推流时间！
                 if current_time - getattr(self, 'start_time', 0) > 15 and current_time - last_sina_time > 20:
-                    missing_codes = [normalize_security_code(c) for c in self.lof_codes if self.get_price(c) == 0]
+                    stale_seconds = 20 if (self.use_qmt or self.use_guojin) else 60
+                    missing_codes = []
+                    for c in self.lof_codes:
+                        clean_code = normalize_security_code(c)
+                        last_ts = self.lof_update_ts.get(clean_code, 0)
+                        if self.get_price(clean_code) == 0 or current_time - last_ts > stale_seconds:
+                            missing_codes.append(clean_code)
                     if missing_codes:
                         qs = [f"{'sh' if c.startswith('5') else 'sz'}{c}" for c in missing_codes]
                         for i in range(0, len(qs), 40):
@@ -991,6 +1002,7 @@ class LOFPriceReader:
                                             new_price = ask_price if ask_price > 0 else last_price
                                             if new_price > 0:
                                                 self.lof_prices[code] = new_price
+                                                self.lof_update_ts[code] = time.time()
                                                 if ask_price > 0:
                                                     self.lof_ask_prices[code] = ask_price
                                                 if bid_price > 0:
@@ -1184,6 +1196,7 @@ def handle_connect():
         'bid_sizes': lof_price_reader.lof_bid_sizes,
         'ask_sizes': lof_price_reader.lof_ask_sizes,
         'order_books': lof_price_reader.lof_order_books,
+        'quote_times': lof_price_reader.lof_update_ts,
         'timestamp': datetime.now().strftime('%Y-%m-%d %H:%M:%S')
     })
     # 发送期货价格快照：优先 TWS 微型合约，缺失时回落主连行情
@@ -1266,6 +1279,8 @@ def get_all_lof_data():
         'bid_size': lof_price_reader.get_bid_size(code),
         'ask_size': lof_price_reader.get_ask_size(code),
         'order_book': lof_price_reader.lof_order_books.get(normalize_security_code(code), {}),
+        'quote_ts': lof_price_reader.lof_update_ts.get(normalize_security_code(code), 0),
+        'source': lof_price_reader.get_source_name(),
         'time': datetime.now().strftime('%H:%M:%S')
     } for code in lof_price_reader.lof_codes})
 
