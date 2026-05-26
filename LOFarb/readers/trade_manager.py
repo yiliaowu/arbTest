@@ -9,6 +9,7 @@ class TradeManager:
     def __init__(self, preload_brokers=None):
         self.tdx_available = False
         self.tq = None
+        self.tqconst = None
         self.tdx_account_id = None
         
         self.xtquant_available = False
@@ -40,26 +41,23 @@ class TradeManager:
             tdx_api_path = r'D:\new_tdx64\PYPlugins\user'
             if os.path.exists(tdx_api_path) and tdx_api_path not in sys.path:
                 sys.path.append(tdx_api_path)
-            from tqcenter import tq
+            from tqcenter import tq, tqconst
             self.tq = tq
+            self.tqconst = tqconst
             
-            # 通达信 API 需要先初始化连接（传入任意有效路径）
-            tdx_bin_path = r'D:\new_tdx64\T0002\bin'
-            if os.path.exists(tdx_bin_path):
-                self.tq.initialize(tdx_bin_path)
-            else:
-                # 如果主程序路径不存在，使用插件路径作为备选
-                self.tq.initialize(tdx_api_path)
+            # 通达信 API 需要先按 tqcenter 示例初始化当前策略文件。
+            self.tq.initialize(__file__)
             
             # 获取交易账户句柄
-            self.tdx_account_id = self.tq.stock_account(account='', account_type='stock')
-            if self.tdx_account_id is None or self.tdx_account_id < 0:
+            self.tdx_account_id = self.tq.stock_account(account='', account_type='STOCK')
+            if self.tdx_account_id in (None, '') or (isinstance(self.tdx_account_id, (int, float)) and self.tdx_account_id < 0):
                 raise RuntimeError(f"获取通达信交易账户句柄失败: {self.tdx_account_id}")
             self.tdx_available = True
             print(f"SUCCESS: [TradeManager] 已挂载【通达信】交易与极速行情模块 (账户ID:{self.tdx_account_id})")
         except Exception as e:
             self.tdx_available = False
             self.tq = None
+            self.tqconst = None
             self.tdx_account_id = None
             print(f"INFO: [TradeManager] 未检测到通达信环境或账户句柄获取失败，已跳过: {e}")
 
@@ -133,15 +131,30 @@ class TradeManager:
         elif broker == 'tdx':
             self.ensure_brokers('tdx')
             if not self.tdx_available: return False, "通达信接口未就绪"
-            if self.tdx_account_id is None or self.tdx_account_id < 0:
+            if self.tdx_account_id in (None, '') or (isinstance(self.tdx_account_id, (int, float)) and self.tdx_account_id < 0):
                 return False, "通达信交易账户未就绪"
             try:
                 # 通达信 order_stock 需要完整的市场后缀代码，如 165513.SZ 或 600519.SH
                 full_symbol = symbol.strip().upper()
                 if '.' not in full_symbol:
                     return False, "通达信下单需传入完整代码后缀，如 165513.SZ"
-                order_type = 0 if action == 'BUY' else 1
-                res = self.tq.order_stock(self.tdx_account_id, full_symbol, order_type, volume, 0, price, 0)
+                order_type = self.tqconst.STOCK_BUY if action == 'BUY' else self.tqconst.STOCK_SELL
+                res = self.tq.order_stock(
+                    account_id=self.tdx_account_id,
+                    stock_code=full_symbol,
+                    order_type=order_type,
+                    order_volume=int(volume),
+                    price_type=self.tqconst.PRICE_MY,
+                    price=float(price)
+                )
+                if isinstance(res, dict):
+                    err = str(res.get('ErrorId', res.get('error_id', '0')))
+                    msg = res.get('ErrorMsg') or res.get('Msg') or res.get('message') or str(res)
+                    if err not in ('0', '', 'None'):
+                        return False, f"通达信下单失败: {msg}"
+                    wtbh = res.get('Wtbh') or res.get('OrderId') or res.get('order_id')
+                    if wtbh:
+                        return True, f"通达信下单成功，委托编号: {wtbh}"
                 return True, f"通达信返回: {res}"
             except Exception as e:
                 return False, f"通达信下单异常: {str(e)}"
