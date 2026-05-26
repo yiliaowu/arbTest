@@ -198,6 +198,16 @@ def generate_fund_data(fund, data_processor, html_generator, futures_data, futur
                 elif 'SPY' in trade_etf or 'XBI' in trade_etf: future_symbol = 'ES'
                 else: future_symbol = 'NQ'
             elif code == '161226': future_symbol = 'AG0'
+
+    future_contract_month = ''
+    if f_list:
+        raw_month = str(f_list[0].get('delivery_month', '') or '').strip()
+        if len(raw_month) == 4 and raw_month.isdigit():
+            future_contract_month = '20' + raw_month
+        elif len(raw_month) >= 6 and raw_month.isdigit():
+            future_contract_month = raw_month[:6]
+        else:
+            future_contract_month = raw_month
     
     # 判断是否已经收盘
     now_dt = datetime.datetime.now()
@@ -1210,6 +1220,8 @@ def generate_fund_data(fund, data_processor, html_generator, futures_data, futur
                                     <input type="number" id="ib-future-vol-{code}" value="1" step="1" oninput="this.dataset.manual='true'" style="width:60px; padding:2px; border:1px solid #ccc; border-radius:4px; font-family:Consolas; font-weight:bold; font-size:11px;">
                                     <span style="color:#666; font-size: 11px;">限价:</span>
                                     <input type="number" id="ib-future-price-{code}" step="0.01" oninput="this.dataset.manual='true'" style="width:80px; padding:2px; border:1px solid #ccc; border-radius:4px; font-family:Consolas; font-weight:bold; color:#e65100; font-size:11px;">
+                                    <span style="color:#666; font-size: 11px;">&#26376;&#20221;:</span>
+                                    <input type="text" id="ib-future-month-{code}" value="{future_contract_month}" placeholder="YYYYMM" maxlength="6" oninput="this.dataset.manual='true'; this.value=this.value.replace(/[^0-9]/g,'').slice(0,6)" style="width:70px; padding:2px; border:1px solid #ccc; border-radius:4px; font-family:Consolas; font-weight:bold; color:#8a4b00; font-size:11px;">
                                 </div>
                                 <span id="ib-future-msg-{code}" style="font-size:10px; font-weight:bold; height: 11px;"></span>
                             </div>
@@ -1818,6 +1830,16 @@ def generate(futures_data=None, ib_data=None):
                         elif 'SPY' in trade_etf or 'XBI' in trade_etf: future_symbol_js = 'ES'
                         else: future_symbol_js = 'NQ'
                     elif code == '161226': future_symbol_js = 'AG0'
+
+            future_contract_month = ''
+            if f_list:
+                raw_month = str(f_list[0].get('delivery_month', '') or '').strip()
+                if len(raw_month) == 4 and raw_month.isdigit():
+                    future_contract_month = '20' + raw_month
+                elif len(raw_month) >= 6 and raw_month.isdigit():
+                    future_contract_month = raw_month[:6]
+                else:
+                    future_contract_month = raw_month
                     
             base_future_price = 0.0
             if base_row is not None:
@@ -1889,6 +1911,7 @@ def generate(futures_data=None, ib_data=None):
                 'baseEtfPrices': base_etf_prices,
                 'category': category,
                 'futureSymbol': future_symbol_js,
+                'futureContractMonth': future_contract_month,
                 'baseFuturePrice': base_future_price,
                 'hedgeValue': hedge_value,
                 'etfHedgeValue': etf_hedge_value,
@@ -2170,6 +2193,20 @@ def generate(futures_data=None, ib_data=None):
                 if (s === 'NQ' || s === 'MNQ') return 'MNQ';
                 if (s === 'ES' || s === 'MES') return 'MES';
                 return s;
+            }
+
+            function normalizeFutureContractMonth(month) {
+                var m = String(month || '').replace(/\D/g, '');
+                if (m.length === 4) return '20' + m;
+                if (m.length >= 6) return m.slice(0, 6);
+                return m;
+            }
+
+            function setDefaultFutureContractMonth(code, month) {
+                var input = document.getElementById('ib-future-month-' + code);
+                var normalized = normalizeFutureContractMonth(month);
+                if (!input || !normalized || input.dataset.manual === 'true') return;
+                input.value = normalized;
             }
 
             function futureSymbolsMatch(left, right) {
@@ -3504,14 +3541,16 @@ def generate(futures_data=None, ib_data=None):
                 var symInput = normalizeFutureAskSymbol(baseData ? baseData.futureSymbol : '');
                 var volInput = parseInt(document.getElementById('ib-future-vol-' + code).value);
                 var priceInput = parseFloat(document.getElementById('ib-future-price-' + code).value);
+                var monthInput = normalizeFutureContractMonth(document.getElementById('ib-future-month-' + code)?.value || (baseData ? baseData.futureContractMonth : ''));
 
                 if (!symInput) { alert('⚠️ 当前基金没有可用的IB期货合约代码！'); return; }
                 if (symInput === 'AG0' || symInput === 'AG') { alert('⚠️ AG0/沪银不是IB期货合约，暂不能通过IB下单。'); return; }
                 if (!volInput || volInput <= 0) { alert('⚠️ 期货委托数量必须大于0！'); return; }
                 if (!priceInput || priceInput <= 0) { alert('⚠️ 请输入有效的期货限价！'); return; }
+                if (monthInput && monthInput.length !== 6) { alert('⚠️ 请输入6位有效期货月份，格式 YYYYMM！'); return; }
 
                 var actionText = action === 'BUY' ? '买入平仓' : '卖空开仓';
-                if (!confirm('🚨 IB期货危险操作确认\n\n您确定要通过 IB 自动执行以下期货交易吗？\n\n方向: ' + actionText + '\n合约: ' + symInput + '\n价格: ' + priceInput + '\n数量: ' + volInput + '张')) return;
+                if (!confirm('🚨 IB期货危险操作确认\n\n您确定要通过 IB 自动执行以下期货交易吗？\n\n方向: ' + actionText + '\n合约: ' + symInput + '\n月份: ' + (monthInput || '自动主力') + '\n价格: ' + priceInput + '\n数量: ' + volInput + '张')) return;
 
                 var msgEl = document.getElementById('ib-future-msg-' + code);
                 msgEl.textContent = '🚀 期货指令发送中...';
@@ -3521,7 +3560,7 @@ def generate(futures_data=None, ib_data=None):
                 fetch(window.tradeApiBase + '/api/ib_trade', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ action: action, symbol: symInput, volume: volInput, price: priceInput, sec_type: 'FUT' })
+                    body: JSON.stringify({ action: action, symbol: symInput, volume: volInput, price: priceInput, sec_type: 'FUT', contract_month: monthInput })
                 })
                 .then(res => {
                     var headerTs = performance.now();
@@ -3702,6 +3741,13 @@ def generate(futures_data=None, ib_data=None):
                             var esPrice = data.ES ? data.ES.price : 0;
                             var esBidPrice = data.ES ? (data.ES.bid || data.ES.price || 0) : 0;
                             var esChangePercent = data.ES ? data.ES.change_percent : 0;
+                            window.futureContractMonths = data.contract_months || window.futureContractMonths || {};
+                            Object.keys(window.fundBaseData || {}).forEach(function(code) {
+                                var baseData = window.fundBaseData[code];
+                                var futSym = baseData ? normalizeFutureAskSymbol(baseData.futureSymbol) : '';
+                                var defaultMonth = window.futureContractMonths[futSym] || (baseData ? baseData.futureContractMonth : '');
+                                setDefaultFutureContractMonth(code, defaultMonth);
+                            });
                             
                             if (document.getElementById('ag0-price')) {
                                 document.getElementById('ag0-price').textContent = ag0Price > 0 ? ag0Price.toFixed(2) : '-';

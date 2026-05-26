@@ -1222,6 +1222,7 @@ def get_futures_data():
     mes_price = future_service.get_price('MES')
     mes_change = future_service.get_change_percent('MES')
     mes_source = future_service.get_source('MES')
+    contract_months = getattr(ib_reader_instance, 'future_contract_months', {})
     data = {
         'GC': {'price': future_service.get_price('GC'), 'change_percent': future_service.get_change_percent('GC'), 'source': future_service.get_source('GC')},
         'CL': {'price': future_service.get_price('CL'), 'change_percent': future_service.get_change_percent('CL'), 'source': future_service.get_source('CL')},
@@ -1234,6 +1235,7 @@ def get_futures_data():
         'MES': {'price': mes_price, 'bid': future_service.get_bid_price('MES'), 'change_percent': mes_change, 'source': mes_source},
         'MGC': {'price': future_service.get_price('MGC'), 'change_percent': future_service.get_change_percent('MGC'), 'source': future_service.get_source('MGC')},
         'MCL': {'price': future_service.get_price('MCL'), 'change_percent': future_service.get_change_percent('MCL'), 'source': future_service.get_source('MCL')},
+        'contract_months': {sym: contract_months.get(sym, '') for sym in ('MGC', 'MCL', 'MES', 'MNQ')},
         'timestamp': int(time.time()),
         'is_trading_time': is_trading
     }
@@ -1422,12 +1424,13 @@ def api_ib_trade():
     volume = data.get('volume', 0)
     price = data.get('price', 0)
     sec_type = data.get('sec_type', 'STK')
+    contract_month = data.get('contract_month', '')
     
     if not symbol or float(volume) <= 0 or float(price) <= 0:
         return jsonify({"status": "error", "message": "参数非法: 代码, 数量或价格无效"}), 400
         
     send_start = time.perf_counter()
-    success, msg = ib_reader_instance.place_us_order(symbol, action, volume, price, sec_type=sec_type)
+    success, msg = ib_reader_instance.place_us_order(symbol, action, volume, price, sec_type=sec_type, contract_month=contract_month)
     send_ms = (time.perf_counter() - send_start) * 1000
     total_ms = (time.perf_counter() - request_start) * 1000
     msg = f"{msg} | 后端耗时: 总{total_ms:.0f}ms/IB下单{send_ms:.0f}ms"

@@ -3,7 +3,7 @@
 
 import threading
 import time
-from datetime import datetime
+from datetime import datetime, date, timedelta
 import yaml
 import random
 import os
@@ -186,6 +186,19 @@ class IBReader(EWrapper, EClient):
         contract.tradingClass = spec.get("tradingClass", std_sym)
         return contract
 
+    def _build_micro_future_chain_contract(self, micro_sym):
+        spec = self.future_contract_specs.get(micro_sym, {})
+        contract = Contract()
+        contract.symbol = micro_sym
+        contract.secType = "FUT"
+        contract.currency = "USD"
+        contract.exchange = spec.get("exchange", "SMART")
+        contract.tradingClass = spec.get("tradingClass", micro_sym)
+        multiplier = spec.get("multiplier")
+        if multiplier:
+            contract.multiplier = multiplier
+        return contract
+
     def _build_standard_cont_future_contract(self, micro_sym):
         contract = self._build_standard_future_chain_contract(micro_sym)
         contract.secType = "CONTFUT"
@@ -245,6 +258,39 @@ class IBReader(EWrapper, EClient):
                 return None
         return None
 
+    def _add_months(self, year, month, delta):
+        idx = year * 12 + (month - 1) + delta
+        return idx // 12, idx % 12 + 1
+
+    def _business_days_before(self, day, count):
+        current = day
+        found = 0
+        while found < count:
+            current -= timedelta(days=1)
+            if current.weekday() < 5:
+                found += 1
+        return current
+
+    def _estimated_last_trade_date(self, micro_sym, month):
+        month = self._normalize_contract_month(month)
+        if len(month) < 6 or not month[:6].isdigit():
+            return None
+        year = int(month[:4])
+        month_num = int(month[4:6])
+
+        if micro_sym == "MCL":
+            # WTI crude stops trading in the month before delivery.  MCL
+            # expires one business day before the standard CL contract, so use
+            # a conservative fourth-business-day-before-25th estimate when IB
+            # does not expose a precise lastTradeDate.
+            prev_year, prev_month = self._add_months(year, month_num, -1)
+            return self._business_days_before(date(prev_year, prev_month, 25), 4)
+        return None
+
+    def _contract_month_expired_by_rule(self, micro_sym, month):
+        last_trade = self._estimated_last_trade_date(micro_sym, month)
+        return bool(last_trade and last_trade < datetime.now().date())
+
     def _contract_detail_expired(self, detail):
         contract = getattr(detail, "contract", None)
         expiry_candidates = [
@@ -259,21 +305,21 @@ class IBReader(EWrapper, EClient):
                 return True
         return False
 
-    def _pick_front_contract_month(self, details):
+    def _pick_front_contract_month(self, micro_sym, details):
         today_yyyymm = datetime.now().strftime("%Y%m")
         months = []
         for detail in details or []:
             if self._contract_detail_expired(detail):
                 continue
             detail_month = self._normalize_contract_month(getattr(detail, "contractMonth", ""))
-            if len(detail_month) >= 6 and detail_month[:6].isdigit() and detail_month[:6] >= today_yyyymm:
+            if len(detail_month) >= 6 and detail_month[:6].isdigit() and detail_month[:6] >= today_yyyymm and not self._contract_month_expired_by_rule(micro_sym, detail_month):
                 months.append(detail_month[:6])
             contract = getattr(detail, "contract", None)
             month = self._normalize_contract_month(getattr(contract, "lastTradeDateOrContractMonth", "") if contract else "")
-            if len(month) >= 6 and month[:6].isdigit() and month[:6] >= today_yyyymm:
+            if len(month) >= 6 and month[:6].isdigit() and month[:6] >= today_yyyymm and not self._contract_month_expired_by_rule(micro_sym, month):
                 months.append(month[:6])
             local_month = self._month_from_local_symbol(getattr(contract, "localSymbol", "") if contract else "")
-            if len(local_month) >= 6 and local_month[:6].isdigit() and local_month[:6] >= today_yyyymm:
+            if len(local_month) >= 6 and local_month[:6].isdigit() and local_month[:6] >= today_yyyymm and not self._contract_month_expired_by_rule(micro_sym, local_month):
                 months.append(local_month[:6])
         return sorted(set(months))[0] if months else ""
 
@@ -296,7 +342,7 @@ class IBReader(EWrapper, EClient):
 
         for req_id in req_ids:
             micro_sym = self.contract_detail_req_symbols.pop(req_id, "")
-            result[micro_sym] = self._pick_front_contract_month(self.contract_detail_data.pop(req_id, []))
+            result[micro_sym] = self._pick_front_contract_month(micro_sym, self.contract_detail_data.pop(req_id, []))
             self.contract_detail_events.pop(req_id, None)
         return result
 
@@ -307,12 +353,13 @@ class IBReader(EWrapper, EClient):
         if not force and now - self.last_contract_month_refresh < 1800 and all(self.future_contract_months.get(s) for s in self.future_symbols):
             return
 
+        micro_months = self._request_contract_months(self._build_micro_future_chain_contract)
         cont_months = self._request_contract_months(self._build_standard_cont_future_contract)
-        # 下单必须避开已过最后交易日的近月合约；普通FUT链条带有真实到期日，优先使用它。
+        # 下单必须避开已过最后交易日的近月合约；优先使用微型FUT链条，标准链条仅用于行情主连兜底。
         chain_months = self._request_contract_months(self._build_standard_future_chain_contract)
 
         for micro_sym in sorted(self.future_symbols):
-            month = chain_months.get(micro_sym) or cont_months.get(micro_sym, "")
+            month = micro_months.get(micro_sym) or chain_months.get(micro_sym) or cont_months.get(micro_sym, "")
             if month:
                 self._set_future_contract_month(micro_sym, month)
                 print(f"[IBReader] {micro_sym} 使用主连所在月份: {month}")
@@ -730,7 +777,7 @@ class IBReader(EWrapper, EClient):
         ts = datetime.now().strftime('%H:%M:%S.%f')[:-3]
         print(f"[IBReader] execDetails {ts}: orderId={getattr(execution, 'orderId', '')}, {getattr(contract, 'symbol', '')}, shares={getattr(execution, 'shares', '')}, price={getattr(execution, 'price', '')}")
 
-    def place_us_order(self, symbol, action, quantity, price, sec_type="STK"):
+    def place_us_order(self, symbol, action, quantity, price, sec_type="STK", contract_month=None):
         """核心恢复：IB 盈透盘前夜盘下单指令发送"""
         total_start = time.perf_counter()
         req_id_ms = 0
@@ -758,6 +805,15 @@ class IBReader(EWrapper, EClient):
             symbol = self._to_micro_future(symbol)
             if not symbol or symbol not in self.future_symbols:
                 return False, f"不支持的IB期货合约: {symbol or '空'}"
+            normalized_month = self._normalize_contract_month(contract_month)
+            if normalized_month:
+                if self._contract_month_expired_by_rule(symbol, normalized_month):
+                    return False, f"{symbol} {normalized_month} 已过最后交易日，不能作为默认下单月份"
+                self._set_future_contract_month(symbol, normalized_month)
+            cached_month = self.future_contract_months.get(symbol, "")
+            if cached_month and self._contract_month_expired_by_rule(symbol, cached_month):
+                self.future_contract_months.pop(symbol, None)
+                self.last_contract_month_refresh = 0
             if not self.future_contract_months.get(symbol):
                 self.refresh_main_contract_months(force=True)
             if not self.future_contract_months.get(symbol):
