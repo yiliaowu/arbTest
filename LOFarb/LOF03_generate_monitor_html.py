@@ -36,6 +36,19 @@ print("使用新架构运行...")
 # 全局变量
 silver_fund_data = None
 
+FUTURE_CONTRACT_MULTIPLIERS = {
+    'MGC': 10.0,
+    'MCL': 100.0,
+    'GC': 10.0,
+    'CL': 100.0,
+    '沪银AG': 15.0,
+    'AG0': 15.0,
+    'MES': 5.0,
+    'MNQ': 2.0,
+    'ES': 50.0,
+    'NQ': 20.0,
+}
+
 # 辅助函数
 
 def read_fund_history_from_db(code):
@@ -1811,16 +1824,19 @@ def generate(futures_data=None, ib_data=None):
                 trade_etf_price = list(base_etf_prices.values())[0]
                 
             future_symbol_js = ''
+            future_multiplier = 0.0
             f_list = fund.get('future_hedging', [])
             if f_list:
                 raw_sym = f_list[0].get('symbol', '').upper()
                 mapping = {'MGC': 'MGC', 'MCL': 'MCL', '沪银AG': 'AG0', 'MES': 'ES', 'MNQ': 'NQ', 'CL': 'MCL', 'GC': 'MGC', 'NQ': 'NQ', 'ES': 'ES'}
                 future_symbol_js = mapping.get(raw_sym, raw_sym)
+                future_multiplier = FUTURE_CONTRACT_MULTIPLIERS.get(raw_sym, FUTURE_CONTRACT_MULTIPLIERS.get(future_symbol_js, 0.0))
             else:
                 trade_fut = fund.get('trade_future', '').upper()
                 mapping = {'MGC': 'MGC', 'MCL': 'MCL', '沪银AG': 'AG0', 'MES': 'ES', 'MNQ': 'NQ', 'CL': 'MCL', 'GC': 'MGC', 'NQ': 'NQ', 'ES': 'ES'}
                 if trade_fut:
                     future_symbol_js = mapping.get(trade_fut, trade_fut)
+                    future_multiplier = FUTURE_CONTRACT_MULTIPLIERS.get(trade_fut, FUTURE_CONTRACT_MULTIPLIERS.get(future_symbol_js, 0.0))
                 else:
                     if category == '黄金': future_symbol_js = 'MGC'
                     elif category == '原油' and code != '162411': future_symbol_js = 'MCL'
@@ -1830,6 +1846,7 @@ def generate(futures_data=None, ib_data=None):
                         elif 'SPY' in trade_etf or 'XBI' in trade_etf: future_symbol_js = 'ES'
                         else: future_symbol_js = 'NQ'
                     elif code == '161226': future_symbol_js = 'AG0'
+                    future_multiplier = FUTURE_CONTRACT_MULTIPLIERS.get(future_symbol_js, 0.0)
 
             future_contract_month = ''
             if f_list:
@@ -1849,6 +1866,7 @@ def generate(futures_data=None, ib_data=None):
             
         # 提取保存在历史账本中的对冲值 (物理兑换比)
             hedge_value = 0.0
+            index_future_hedge_value = 0.0
             rmb_exposure = 0.0
             latest_calibration_factor = 0.0
             index_future_calibration = 0.0
@@ -1867,6 +1885,14 @@ def generate(futures_data=None, ib_data=None):
                         hedge_value = float(hv)
                 except:
                     pass
+                for hedge_col in ('Hedge', 'hedge', 'hedge_value'):
+                    try:
+                        hv = base_row.get(hedge_col, 0.0)
+                        if pd.notna(hv) and hv != '无' and hv != '':
+                            index_future_hedge_value = float(hv)
+                            break
+                    except:
+                        pass
                 try:
                     re = base_row.get('rmb_exposure', 0.0)
                     if pd.notna(re) and re != '无':
@@ -1898,6 +1924,21 @@ def generate(futures_data=None, ib_data=None):
             fut_hedge_value = 0.0
             if base_future_price > 0 and base_nav > 0 and position > 0 and base_exchange_rate is not None:
                 fut_hedge_value = (base_future_price * base_exchange_rate) / (base_nav * position)
+
+            commodity_future_calibration = 0.0
+            if base_row is not None:
+                calib_col = '黄金期货校准' if category == '黄金' else '原油期货校准' if category == '原油' else ''
+                if calib_col:
+                    try:
+                        cv = base_row.get(calib_col, 0.0)
+                        if pd.notna(cv) and cv != '无' and cv != '':
+                            commodity_future_calibration = float(cv)
+                    except:
+                        pass
+
+            calibrated_future_hedge_value = 0.0
+            if category in {'黄金', '原油'} and etf_hedge_value > 0 and commodity_future_calibration > 0 and future_multiplier > 0:
+                calibrated_future_hedge_value = etf_hedge_value * commodity_future_calibration * future_multiplier
             
             # 提取 JS 沙盘实时运算专用汇率
             today_er_for_js = global_er
@@ -1912,9 +1953,13 @@ def generate(futures_data=None, ib_data=None):
                 'category': category,
                 'futureSymbol': future_symbol_js,
                 'futureContractMonth': future_contract_month,
+                'futureMultiplier': future_multiplier,
                 'baseFuturePrice': base_future_price,
                 'hedgeValue': hedge_value,
                 'etfHedgeValue': etf_hedge_value,
+                'calibratedFutureHedgeValue': calibrated_future_hedge_value,
+                'indexFutureHedgeValue': index_future_hedge_value,
+                'commodityFutureCalibration': commodity_future_calibration,
                 'rmbExposure': rmb_exposure,
                 'futHedgeValue': fut_hedge_value,
                 'futCalib': index_future_calibration,
@@ -2920,9 +2965,16 @@ def generate(futures_data=None, ib_data=None):
 
                 // Determine the hedgeValue based on the type and whether it's a reverse calculation
                 var hedgeValue = 0;
-                if (isReverse) { // For future modes (input is futures lots), use the API-provided hedgeValue (LOF shares per future lot)
-                    hedgeValue = baseData.hedgeValue;
+                if (stype === 'future') {
+                    if (baseData.category === '指数') {
+                        hedgeValue = baseData.indexFutureHedgeValue || baseData.hedgeValue;
+                    } else if (baseData.category === '黄金' || baseData.category === '原油') {
+                        hedgeValue = baseData.calibratedFutureHedgeValue;
+                    }
                     if (!hedgeValue || hedgeValue <= 0) hedgeValue = baseData.futHedgeValue;
+                } else if (stype === 'pure_future') {
+                    hedgeValue = baseData.futHedgeValue;
+                    if (!hedgeValue || hedgeValue <= 0) hedgeValue = baseData.hedgeValue;
                 } else { // For ETF mode (input is capital), use API hedgeValue or fallback to derived etfHedgeValue
                     hedgeValue = baseData.hedgeValue;
                     if (!hedgeValue || hedgeValue <= 0) {
